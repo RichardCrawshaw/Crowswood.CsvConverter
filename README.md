@@ -52,9 +52,9 @@ public class Foo
 }
 ```
 
-The `Foo` in all lines of the data is the name of the class that will be 
+The "Foo" in all lines of the data is the name of the class that will be 
 created. The property names in the Properties line are the names of the 
-properties of Foo. These can be redefined: see the **Options** and 
+properties of `Foo`. These can be redefined: see the **Options** and 
 **Attributes** sections below.
 
 ### Comments
@@ -168,6 +168,22 @@ test projects.
 ## Future Enhancements
 
 The following future enhancements are under active development:
+- Automatic increments.
+
+    This is intended to assist with generating seed data for database entity
+    objects. Have a character combination that is the same on each line, so the
+    human maintainer doesn't have to worry about ensuring unique IDs for each 
+    data row.
+
+- Referencing records of other data.
+
+    For those entity objects that form a data hierarchy as generally seen in
+    relational databases by linking to the Primary Key column of the reference
+    data. A textual value would be supplied, which would then be looked up in 
+    the values of the reference data and the Primary Key of that record would
+    be used instead. Configuration of which property to look up and which to 
+    return would be needed.
+
 - Adding support for dynamic types. 
     
     This will be useful for data transformation such as when processing through 

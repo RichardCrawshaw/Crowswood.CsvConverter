@@ -654,7 +654,7 @@ namespace Crowswood.CsvConverter
                 if (list[index - 1].Trim().StartsWith('"') &&
                     !list[index - 1].Trim().EndsWith('"'))
                 {
-                    list[index] = $"{list[index - 1]},{list[index]}";
+                    list[index - 1] = $"{list[index - 1]},{list[index]}";
                     list.RemoveAt(index);
                 }
                 else

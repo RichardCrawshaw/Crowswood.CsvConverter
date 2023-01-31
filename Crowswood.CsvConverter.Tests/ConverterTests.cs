@@ -20,10 +20,10 @@ namespace Crowswood.CsvConverter.Tests
             var converter = new Converter(Options.None);
 
             // Act
-            var objects = converter.Deserialize<object>("some text");
+            var data = converter.Deserialize<object>("some text");
 
             // Assert
-            Assert.AreEqual(0, objects.Count(), "Unexpected number of objects.");
+            Assert.AreEqual(0, data.Count(), "Unexpected number of objects.");
         }
 
         [TestMethod]
@@ -45,10 +45,31 @@ Values,Foo,1,""Fred""
             var converter = new Converter(options);
 
             // Act
-            var foos = converter.Deserialize<Foo>(text);
+            var data = converter.Deserialize<Foo>(text);
 
             // Assert
-            Assert.AreEqual(1, foos.Count(), "Unexpected number of Foo objects.");
+            Assert.AreEqual(1, data.Count(), "Unexpected number of Foo objects.");
+        }
+
+        [TestMethod]
+        public void DeserializeEmbeddedCommaInTextTest()
+        {
+            var text = @"
+Properties,Foo,Id,Name
+Values,Foo,1,""Name, with embedded comma""";
+            var options =
+                new Options()
+                    .ForType<Foo>();
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize<Foo>(text);
+
+            // Assert
+            Assert.AreEqual(1, data.Count(), "Unexpected number of Foo objects.");
+
+            Assert.AreEqual(1, data.First().Id, "Unexpected value for Id of Foo 0.");
+            Assert.AreEqual("Name, with embedded comma", data.First().Name, "Unexpected value for Name of Foo 0.");
         }
 
         [TestMethod]
@@ -64,21 +85,21 @@ Values,Foo,1,""Fred"",TestEnum.Data";
             var converter = new Converter(options);
 
             // Act
-            var foos = converter.Deserialize<Foo>(text);
+            var data = converter.Deserialize<Foo>(text);
 
             // Assert
-            Assert.AreEqual(1, foos.Count(), "Unexpected number of Foo objects.");
+            Assert.AreEqual(1, data.Count(), "Unexpected number of Foo objects.");
 
-            Assert.AreEqual(1, foos.First().Id, "Incorrect Id.");
-            Assert.AreEqual("Fred", foos.First().Name, "Incorrect Name.");
-            Assert.AreEqual(TestEnum.Data, foos.First().TestEnum, "Incorrect TestEnum.");
+            Assert.AreEqual(1, data.First().Id, "Incorrect Id.");
+            Assert.AreEqual("Fred", data.First().Name, "Incorrect Name.");
+            Assert.AreEqual(TestEnum.Data, data.First().TestEnum, "Incorrect TestEnum.");
         }
 
         [TestMethod]
         public void SimpleSerializeTest()
         {
             // Arrange
-            var foos =
+            var data =
                 new List<Foo>()
                 {
                     new Foo { Id = 1, Name = "Foo 1", TestEnum = TestEnum.Value },
@@ -87,11 +108,10 @@ Values,Foo,1,""Fred"",TestEnum.Data";
             var options =
                 new Options()
                     .ForType<Foo>();
-                    //.ForType<Baz>();
             var converter = new Converter(options);
 
             // Act
-            var text = converter.Serialize(foos);
+            var text = converter.Serialize(data);
 
             // Assert
             Assert.IsNotNull(text, "Failed to serialize List of Foo.");
@@ -182,7 +202,7 @@ Values,Baz,108,""One-zero-eight"",""oze"",""Value over a hundred""";
         public void MultipleSerializeTest()
         {
             // Arrange
-            var foos =
+            var data =
                 new List<Foo>()
                 {
                     new Foo() { Id = 1, Name = "Foo 1", },
@@ -198,7 +218,7 @@ Values,Baz,108,""One-zero-eight"",""oze"",""Value over a hundred""";
             var converter = new Converter(options);
 
             // Act
-            var text = converter.Serialize(foos);
+            var text = converter.Serialize(data);
 
             // Assert
             Assert.IsNotNull(text, "Failed to serialize List of Foo.");
