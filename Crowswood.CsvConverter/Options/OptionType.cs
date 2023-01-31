@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Reflection;
 
 namespace Crowswood.CsvConverter
 {
@@ -20,6 +16,20 @@ namespace Crowswood.CsvConverter
         /// </summary>
         public abstract Type Type { get; }
 
+        /// <summary>
+        /// Gets a <see cref="string"/> that contains the name of the type that is used in the 
+        /// CSV data.
+        /// </summary>
+        public string Name { get; }
+
+        #endregion
+
+        #region Constructors
+
+        protected OptionType() => this.Name = this.Type.Name;
+
+        protected OptionType(string name) : this() => this.Name = name;
+
         #endregion
     }
 
@@ -27,7 +37,7 @@ namespace Crowswood.CsvConverter
     /// A generic class that derives from <see cref="OptionType"/>. It allows the specification
     /// of the actual type.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="T">The Type of data that this instance handles.</typeparam>
     public sealed class OptionType<T> : OptionType
         where T : class, new()
     {
@@ -35,6 +45,23 @@ namespace Crowswood.CsvConverter
 
         /// <inheritdoc/>
         public override Type Type => typeof(T);
+
+        #endregion
+
+        #region Constructors
+
+        /// <summary>
+        /// Creates an instance of the <see cref="OptionType{T}"/> that uses the <seealso cref="MemberInfo.Name"/>
+        /// of the <seealso cref="Type"/> in the CSV data.
+        /// </summary>
+        public OptionType() : base() { }
+
+        /// <summary>
+        /// Creates an instance of the <see cref="OptionType{T}"/> that uses <paramref name="name"/>
+        /// for the <seealso cref="Type"/> in the CSV data.
+        /// </summary>
+        /// <param name="name">A <see cref="string"/> that contains the name of the data-type used within the CSV data.</param>
+        public OptionType(string name) : base(name) { }
 
         #endregion
     }

@@ -1,4 +1,4 @@
-﻿using static Crowswood.CsvConverter.Converter;
+﻿using System.Linq.Expressions;
 
 namespace Crowswood.CsvConverter
 {
@@ -10,7 +10,7 @@ namespace Crowswood.CsvConverter
     {
         #region Fields
 
-        private readonly List<Assignment> assignments = new();
+        private readonly List<OptionMember> optionMembers = new();
         private readonly List<OptionType> optionTypes = new();
         private readonly bool none;
 
@@ -24,10 +24,10 @@ namespace Crowswood.CsvConverter
         public static Options None => new(true);
 
         /// <summary>
-        /// Gets the <see cref="Assignment"/> instances assigned to the current <see cref="Options"/>
+        /// Gets the <see cref="OptionMember"/> instances assigned to the current <see cref="Options"/>
         /// instance.
         /// </summary>
-        public Assignment[] Assignments => assignments.ToArray();
+        public OptionMember[] OptionMembers => optionMembers.ToArray();
 
         /// <summary>
         /// Gets and sets the <see cref="string"/> array of comment prefixes.
@@ -74,26 +74,62 @@ namespace Crowswood.CsvConverter
         #region Methods
 
         /// <summary>
-        /// Adds the specified <paramref name="assignment"/>.
+        /// Adds the specified <paramref name="optionMember"/>.
         /// </summary>
-        /// <typeparam name="T">The type that the assignement is for.</typeparam>
-        /// <param name="assignment">An <see cref="Assignment{T}"/> to add.</param>
+        /// <typeparam name="TObject">The type of the object.</typeparam>
+        /// <typeparam name="TMember">The type of the member.</typeparam>
+        /// <param name="member">An <see cref="Expression{TDelegate}"/> of <see cref="Func{T, TResult}"/> that takes a <typeparamref name="TObject"/> and returns a <typeparamref name="TMember"/>.</param>
+        /// <param name="name">A <see cref="string"/> that contains the name to use for the member in the CSV data.</param>
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
-        public Options ForMember<T>(Assignment<T> assignment) where T : class, new()
-        {
-            if (!none)
-                assignments.Add(assignment);
-            return this;
-        }
+        public Options ForMember<TObject, TMember>(Expression<Func<TObject, TMember>> member, string name)
+            where TObject : class, new() =>
+            AddOptionMember(new OptionMember<TObject, TMember>(member, name));
 
         /// <summary>
         /// Adss the specified <paramref name="optionType"/>.
         /// </summary>
-        /// <typeparam name="T">The type that the <see cref="OptionType"/> is for.</typeparam>
+        /// <typeparam name="TObject">The type that the <see cref="OptionType"/> is for.</typeparam>
         /// <param name="optionType">An <see cref="OptionType{T}"/> to add.</param>
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
-        public Options ForType<T>(OptionType<T> optionType)
-            where T : class, new()
+        public Options ForType<TObject>(OptionType<TObject> optionType)
+            where TObject : class, new() =>
+            AddType(optionType);
+
+        /// <summary>
+        /// Adds a new <see cref="OptionType{T}"/> for <typeparamref name="TObject"/> to the 
+        /// current <see cref="Options"/> instance.
+        /// </summary>
+        /// <typeparam name="TObject">The <see cref="Type"/> of object that the instance to handle.</typeparam>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ForType<TObject>()
+            where TObject : class, new() => 
+            ForType(new OptionType<TObject>());
+
+        /// <summary>
+        /// Adds a new <see cref="OptionType{T}"/> for <typeparamref name="TObject"/> with the 
+        /// specified <paramref name="name"/> to the current <see cref="Options"/> instance 
+        /// </summary>
+        /// <typeparam name="TObject">The <see cref="Type"/> of object that the instance to handle.</typeparam>
+        /// <param name="name">A <see cref="string"/> containing the name to use for the object in the CSV data.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ForType<TObject>(string name)
+            where TObject : class, new() =>
+            ForType(new OptionType<TObject>(name));
+
+        #endregion
+
+        #region Support routines
+
+        private Options AddOptionMember<TObject, TMember>(OptionMember<TObject, TMember> optionMember)
+            where TObject : class, new()
+        {
+            if (!none)
+                this.optionMembers.Add(optionMember);
+            return this;
+        }
+
+        private Options AddType<TObject>(OptionType<TObject> optionType) 
+            where TObject : class, new()
         {
             if (!none)
                 optionTypes.Add(optionType);

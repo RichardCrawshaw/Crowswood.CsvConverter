@@ -210,10 +210,20 @@ namespace Crowswood.CsvConverter
         /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</returns>
         /// <exception cref="ArgumentException">If <seealso cref="OptionType.Type"/> cannot be assigned to <typeparamref name="TBase"/>.</exception>
         /// <exception cref="InvalidOperationException">If the conversion failed.</exception>
-        /// <remarks>This routine calls its namesake by reflection.</remarks>
         private IEnumerable<string> ConvertFrom<TBase>(OptionType optionType, IEnumerable<TBase> values)
             where TBase : class => ConvertFrom<TBase>(optionType.Type, values);
 
+        /// <summary>
+        /// Converts teh specified <paramref name="values"/> of type <paramref name="type"/> into
+        /// an <see cref="IEnumerable{T}"/> of <see cref="string"/>.
+        /// </summary>
+        /// <typeparam name="TBase">The type of object to process.</typeparam>
+        /// <param name="type">The <see cref="Type"/> of object; it must be assignable to <typeparamref name="TBase"/>.</param>
+        /// <param name="values">An <see cref="IEnumerable{T}"/> of <typeparamref name="TBase"/> that contains the objects to process.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</returns>
+        /// <exception cref="ArgumentException">If <seealso cref="OptionType.Type"/> cannot be assigned to <typeparamref name="TBase"/>.</exception>
+        /// <exception cref="InvalidOperationException">If the conversion failed.</exception>
+        /// <remarks>This routine calls its namesake by reflection.</remarks>
         private IEnumerable<string> ConvertFrom<TBase>(Type type, IEnumerable<TBase> values)
             where TBase : class
         {
@@ -279,7 +289,7 @@ namespace Crowswood.CsvConverter
             var parameters =
                 properties
                     .Select(property =>
-                        options.Assignments
+                        options.OptionMembers
                             .Where(assignment => assignment.Property.Name == property.Name)
                             .Select(assignment => assignment.Name)
                             .FirstOrDefault() ?? 
@@ -311,10 +321,20 @@ namespace Crowswood.CsvConverter
         /// <returns>An <see cref="IEnumerable{T}"/> of <typeparamref name="TBase"/>.</returns>
         /// <exception cref="ArgumentException">If <seealso cref="OptionType.Type"/> cannot be assigned to <typeparamref name="TBase"/>.</exception>
         /// <exception cref="InvalidOperationException">If the conversion failed.</exception>
-        /// <remarks>This routine calls its namesake by reflection.</remarks>
         private IEnumerable<TBase> ConvertTo<TBase>(OptionType optionType, IEnumerable<string> lines)
             where TBase : class => ConvertTo<TBase>(optionType.Type, lines);
 
+        /// <summary>
+        /// Converts the specified <paramref name="lines"/> to an <see cref="IEnumerable{T}"/> of
+        /// <paramref name="type"/>.
+        /// </summary>
+        /// <typeparam name="TBase">The type of objects to return.</typeparam>
+        /// <param name="type">The <see cref="Type"/> of object to create; it must be assignable to <typeparamref name="TBase"/>.</param>
+        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> that contains the text to convert.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <typeparamref name="TBase"/>.</returns>
+        /// <exception cref="ArgumentException">If <seealso cref="OptionType.Type"/> cannot be assigned to <typeparamref name="TBase"/>.</exception>
+        /// <exception cref="InvalidOperationException">If the conversion failed.</exception>
+        /// <remarks>This routine calls its namesake by reflection.</remarks>
         private IEnumerable<TBase> ConvertTo<TBase>(Type type, IEnumerable<string> lines)
             where TBase : class
         {
@@ -410,7 +430,11 @@ namespace Crowswood.CsvConverter
             if (type == typeof(bool))
                 return bool.Parse(value);
             if (type.IsEnum)
+            {
+                if (value.StartsWith(type.Name+'.'))
+                    return Enum.Parse(type, value.Substring(type.Name.Length + 1), true);
                 return Enum.Parse(type, value, true);
+            }
 
             return Convert.ChangeType(double.Parse(value), type);
         }
@@ -441,7 +465,7 @@ namespace Crowswood.CsvConverter
             var result = new TBase();
             for (var index = 0; index < values.Length; index++)
             {
-                var property = GetProperty(this.options.Assignments, propertyAttributes, names[index]);
+                var property = GetProperty(this.options.OptionMembers, propertyAttributes, names[index]);
 
                 // Don't assign ConvertValue to a variable, instead pass its result directly to
                 // the SetValue method, we don't want to resolve it if the property is null.
@@ -528,7 +552,7 @@ namespace Crowswood.CsvConverter
         /// In all instances the name must match exactly, including case.
         /// </remarks>
         /// <param name="name">A <see cref="string"/> containing the name.</param>
-        private static PropertyInfo? GetProperty(Assignment[] assignments,
+        private static PropertyInfo? GetProperty(OptionMember[] assignments,
                                                  List<(PropertyInfo Property, CsvConverterPropertyAttribute? Attribute)> propertyAttributes,
                                                  string name) =>
             assignments
@@ -595,7 +619,7 @@ namespace Crowswood.CsvConverter
                 return
                     string.IsNullOrEmpty(value) ? string.Empty :
                     !Enum.IsDefined(type, value) ? string.Empty :
-                    Enum.GetName(type, value) ?? string.Empty;
+                    $"{type.Name}.{value}";
 
             if (type.IsValueType)
                 return value ?? 0.ToString();
