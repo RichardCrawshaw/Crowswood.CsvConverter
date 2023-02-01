@@ -390,8 +390,6 @@ namespace Crowswood.CsvConverter
                     .Where(items => items[1].Trim() == typeName)
                     .Select(items => items[2..^0])
                     .FirstOrDefault();
-            if (names is null)
-                throw new Exception($"Failed to identify property names for {typeName}.");
 
             var values =
                 lines
@@ -401,6 +399,13 @@ namespace Crowswood.CsvConverter
                     .Where(items => items[0].Trim() == options.ValuesPrefix)
                     .Where(items => items[1].Trim() == typeName)
                     .Select(items => items[2..^0]);
+
+            if (names is null)
+            {
+                if (values.Any())
+                    throw new Exception($"Failed to identify property names for {typeName}.");
+                yield break;
+            }
 
             foreach (var value in values)
                 yield return Create<T>(propertyAttributes, names, value);
@@ -420,7 +425,7 @@ namespace Crowswood.CsvConverter
         /// <remarks>
         /// <seealso cref="GetText(Type, string?)"/> does the reverse.
         /// </remarks>
-        private static object ConvertValue(string value, Type type)
+        private static object? ConvertValue(string value, Type type)
         {
             if (type == typeof(string))
                 return value.Trim().Trim('"');
@@ -436,7 +441,27 @@ namespace Crowswood.CsvConverter
                 return Enum.Parse(type, value, true);
             }
 
-            return Convert.ChangeType(double.Parse(value), type);
+            object? result = null;
+            if (type.IsGenericType)
+            {
+                var genericArguments = type.GetGenericArguments();
+                if (genericArguments.Length == 1)
+                {
+                    var nullableType = typeof(Nullable<>).MakeGenericType(genericArguments[0]);
+                    if (type == nullableType)
+                    {
+                        if (double.TryParse(value, out var parsed))
+                        {
+                            result = Convert.ChangeType(parsed, genericArguments[0]);
+                        }
+                    }
+                }
+            }
+            else if (double.TryParse(value, out var parsed))
+            {
+                result = Convert.ChangeType(parsed, type);
+            }
+            return result;
         }
 
         /// <summary>
