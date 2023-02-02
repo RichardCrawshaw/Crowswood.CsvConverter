@@ -211,10 +211,11 @@ namespace Crowswood.CsvConverter
         /// <exception cref="ArgumentException">If <seealso cref="OptionType.Type"/> cannot be assigned to <typeparamref name="TBase"/>.</exception>
         /// <exception cref="InvalidOperationException">If the conversion failed.</exception>
         private IEnumerable<string> ConvertFrom<TBase>(OptionType optionType, IEnumerable<TBase> values)
-            where TBase : class => ConvertFrom<TBase>(optionType.Type, values);
+            where TBase : class =>  //  can't use a new() contraint as TBase may well be abstract
+            ConvertFrom<TBase>(optionType.Type, values);
 
         /// <summary>
-        /// Converts teh specified <paramref name="values"/> of type <paramref name="type"/> into
+        /// Converts the specified <paramref name="values"/> of type <paramref name="type"/> into
         /// an <see cref="IEnumerable{T}"/> of <see cref="string"/>.
         /// </summary>
         /// <typeparam name="TBase">The type of object to process.</typeparam>
@@ -225,7 +226,7 @@ namespace Crowswood.CsvConverter
         /// <exception cref="InvalidOperationException">If the conversion failed.</exception>
         /// <remarks>This routine calls its namesake by reflection.</remarks>
         private IEnumerable<string> ConvertFrom<TBase>(Type type, IEnumerable<TBase> values)
-            where TBase : class
+            where TBase : class //  can't use a new() contraint as TBase may well be abstract
         {
             if (!type.IsAssignableTo(typeof(TBase)))
                 throw new ArgumentException(
@@ -271,7 +272,7 @@ namespace Crowswood.CsvConverter
         /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</returns>
         /// <remarks>This routine is called by reflection.</remarks>
         private IEnumerable<string> ConvertFrom<T>(IEnumerable<T> values, Type type)
-            where T : class, new()
+            where T : class //  can't use a new() contraint as TBase may well be abstract
         {
             var results = new List<string>();
 
@@ -386,8 +387,9 @@ namespace Crowswood.CsvConverter
                 lines
                     .Where(line => line.StartsWith(options.PropertyPrefix))
                     .Select(line => line.Split(','))
-                    .Where(items => items[0].Trim() == options.PropertyPrefix)
-                    .Where(items => items[1].Trim() == typeName)
+                    .Select(items => items.Select(item => item.Trim()).ToArray())
+                    .Where(items => items[0] == options.PropertyPrefix)
+                    .Where(items => items[1] == typeName)
                     .Select(items => items[2..^0])
                     .FirstOrDefault();
 
@@ -396,8 +398,9 @@ namespace Crowswood.CsvConverter
                     .Where(line => line.StartsWith(options.ValuesPrefix))
                     .Select(line => line.Split(','))
                     .Select(items => RejoinSplitQuotes(items))
-                    .Where(items => items[0].Trim() == options.ValuesPrefix)
-                    .Where(items => items[1].Trim() == typeName)
+                    .Select(items => items.Select(item => item.Trim()).ToArray())
+                    .Where(items => items[0] == options.ValuesPrefix)
+                    .Where(items => items[1] == typeName)
                     .Select(items => items[2..^0]);
 
             if (names is null)
@@ -428,7 +431,8 @@ namespace Crowswood.CsvConverter
         private static object? ConvertValue(string value, Type type)
         {
             if (type == typeof(string))
-                return value.Trim().Trim('"');
+                // Remove any white space surrounding the value, then remove the double-quotes.
+                return value.Trim().Trim('"').Trim();
             if (!type.IsValueType || type == typeof(DateTime))
                 throw new ArgumentException("Must be either a string, enum or numeric type.", nameof(type));
 
@@ -436,8 +440,8 @@ namespace Crowswood.CsvConverter
                 return bool.Parse(value);
             if (type.IsEnum)
             {
-                if (value.StartsWith(type.Name+'.'))
-                    return Enum.Parse(type, value.Substring(type.Name.Length + 1), true);
+                if (value.StartsWith(type.Name + '.'))
+                    return Enum.Parse(type, value.AsSpan(type.Name.Length + 1), true);
                 return Enum.Parse(type, value, true);
             }
 
@@ -545,7 +549,7 @@ namespace Crowswood.CsvConverter
                     .Where(method => CheckArguments(method, types, returnType))
                     .SingleOrDefault();
 
-            return 
+            return
                 method ??
                 throw new InvalidOperationException(
                     $"Failed to bind {name}<{type.Name}>({string.Join(", ", types.Select(t => t.GetName()))}) : {returnType.GetName()}.");
@@ -606,18 +610,6 @@ namespace Crowswood.CsvConverter
                         Property: property,
                         Attribute: property.GetCustomAttribute<CsvConverterPropertyAttribute>(true)))
                     .ToList();
-
-        /// <summary>
-        /// Retrieves the <seealso cref="MemberInfo.Name"/> of the properties of the <typeparamref name="T"/>.
-        /// </summary>
-        /// <typeparam name="T">The type of object to retreive the property names for.</typeparam>
-        /// <returns>A <see cref="string"/> array.</returns>
-        private static string[] GetPropertyNames<T>() where T : class =>
-            typeof(T)
-                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-                .Select(property => property.Name)
-                .OrderBy(name => name)
-                .ToArray();
 
         /// <summary>
         /// Returns a <see cref="string"/> containing the textual representation of the specified
