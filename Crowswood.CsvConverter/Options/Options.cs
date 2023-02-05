@@ -11,6 +11,7 @@ namespace Crowswood.CsvConverter
         #region Fields
 
         private readonly List<OptionMember> optionMembers = new();
+        private readonly List<OptionMetadata> optionMetadata = new();
         private readonly List<OptionType> optionTypes = new();
         private readonly bool none;
 
@@ -24,12 +25,6 @@ namespace Crowswood.CsvConverter
         public static Options None => new(true);
 
         /// <summary>
-        /// Gets the <see cref="OptionMember"/> instances assigned to the current <see cref="Options"/>
-        /// instance.
-        /// </summary>
-        public OptionMember[] OptionMembers => optionMembers.ToArray();
-
-        /// <summary>
         /// Gets and sets the <see cref="string"/> array of comment prefixes.
         /// </summary>
         /// <remarks>
@@ -37,6 +32,18 @@ namespace Crowswood.CsvConverter
         /// be ignored.
         /// </remarks>
         public string[] CommentPrefixes { get; set; } = new[] { "!", "#", ";", "//", "--", };
+
+        /// <summary>
+        /// Gets the <see cref="OptionMember"/> instances assigned to the current <see cref="Options"/>
+        /// instance.
+        /// </summary>
+        public OptionMember[] OptionMembers => optionMembers.ToArray();
+
+        /// <summary>
+        /// Gets the <see cref="OptionMetadata"/> instances assigned to the <see cref="Options"/>
+        /// instance.
+        /// </summary>
+        public OptionMetadata[] OptionMetadata => optionMetadata.ToArray();
 
         /// <summary>
         /// Gets the <see cref="OptionType"/> instances assigned to the curent <see cref="Options"/>
@@ -86,6 +93,26 @@ namespace Crowswood.CsvConverter
             AddOptionMember(new OptionMember<TObject, TMember>(member, name));
 
         /// <summary>
+        /// Adds the specified <paramref name="optionMetadata"/>.
+        /// </summary>
+        /// <param name="optionMetadata">An <see cref="OptionMetadata"/> to add.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ForMetadata<TMetadata>(OptionMetadata<TMetadata> optionMetadata)
+            where TMetadata : class, new() => AddOptionMetadata(optionMetadata);
+
+        /// <summary>
+        /// Adds a new <see cref="OptionMetadata{T}"/> for the specified <paramref name="prefix"/>
+        /// and <paramref name="propertyNames"/>
+        /// </summary>
+        /// <typeparam name="TMetadata">The generic parameter of the <see cref="OptionMetadata{T}"/>.</typeparam>
+        /// <param name="prefix">A <see cref="string"/> that contains the prefix.</param>
+        /// <param name="propertyNames">A <see cref="string[]"/> that contains the property names.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ForMetadata<TMetadata>(string prefix, params string[] propertyNames)
+            where TMetadata : class, new() =>
+            ForMetadata(new OptionMetadata<TMetadata>(prefix, propertyNames));
+
+        /// <summary>
         /// Adss the specified <paramref name="optionType"/>.
         /// </summary>
         /// <typeparam name="TObject">The type that the <see cref="OptionType"/> is for.</typeparam>
@@ -116,6 +143,22 @@ namespace Crowswood.CsvConverter
             where TObject : class, new() =>
             ForType(new OptionType<TObject>(name));
 
+        /// <summary>
+        /// Sets the <seealso cref="PropertyPrefix"/> and <seealso cref="ValuesPrefix"/> according
+        /// to the specified <paramref name="propertiesPrefix"/> and <paramref name="valuesPrefix"/>.
+        /// </summary>
+        /// <param name="propertiesPrefix">A <see cref="string"/> containing the new properties prefix value or null for no change.</param>
+        /// <param name="valuesPrefix">A <see cref="string"/> containing the new values prefix value or null for no change.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options SetPrefixes(string? propertiesPrefix, string? valuesPrefix)
+        {
+            if (!string.IsNullOrWhiteSpace(propertiesPrefix))
+                this.PropertyPrefix = propertiesPrefix;
+            if (!string.IsNullOrWhiteSpace(valuesPrefix))
+                this.ValuesPrefix = valuesPrefix;
+            return this;
+        }
+
         #endregion
 
         #region Support routines
@@ -125,6 +168,14 @@ namespace Crowswood.CsvConverter
         {
             if (!none)
                 this.optionMembers.Add(optionMember);
+            return this;
+        }
+
+        private Options AddOptionMetadata<TMetadata>(OptionMetadata<TMetadata> optionMetadata)
+            where TMetadata : class, new()
+        {
+            if (!this.none)
+                this.optionMetadata.Add(optionMetadata);
             return this;
         }
 
