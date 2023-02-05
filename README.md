@@ -35,6 +35,9 @@ property names are.
 String values are contained in "double-quotes". Double-quoted string can contain 
 commas.
 
+It also supports meta-data. This is applied on a per-data-type basis. See 
+**Meta-data** below.
+
 ### Example Data
 
 ```
@@ -155,6 +158,92 @@ public class Foo
 }
 ```
 
+## Meta-data
+
+Meta-data can be defined in the CSV data on a per-data-type basis. This is then
+applied to the appropriate data-type. The format of the meta-data in the CSV is
+very similar to that of the other lines: a prefix, the data-type, followed by a
+list of values.
+
+Example:
+```
+SomeMetadata,Bas,Field1,Field2
+Properties,Bas,Identity,FullName
+Values,Bas,1,"Fred"
+Values,Bas,2,"Bert"
+```
+
+Mutliple sets of meta-data can be applied to a data-type; including multiple sets
+of the same type of meta-data.
+
+There are three types of meta-data:
+1. A dictionary of string values keyed by string
+
+    There are two flavours, one where the value *cannot* be null, and one where
+    it can be null. The practical difference between the two is how empty strings
+    are handled. If the value cannot be null then both no value `...,,...` two 
+    commas without anything between them, and an empty string `...,"",...` both 
+    generate a value of empty string. If teh value can be null then no value will
+    produce null.
+
+2. An object with properties
+
+    These can be accessed via the `Metadata` property on the `converter`. The 
+    `Metadata` property is a dictionary that is keyed by `Type`. The value of the
+    property is a `List` of `object`, and each object in the list is the instance
+    of the meta-data for that data-type.
+    
+3. An attribute on the type
+
+    These can be accessed by the static `TypeDescriptor` class.
+    
+    Example
+    ```
+    var attributes = TypeDescriptor.GetAttributes(typeof(Foo));
+    ```
+    If the specified type for the meta-data is derived from `Attribute` then this
+    type of meta-data is automatically generated.
+    In all other respects they are the same as the meta-data accessed through the 
+    `Metadata` property on the `converter`.
+    
+    **Note**: these attributes *cannot* be accessed through reflection and the 
+    `GetCustomAttribute` method.
+
+### Useage
+
+Meta-data is enabled through `Options`.
+Each separate meta-data type must be registered. This includes the prefix used to 
+identify that the line is a particular meta-data type and the names of the properties
+that are to be populated in the same order that the values are specified in the CSV
+data.
+
+Example:
+```
+var options =
+    new Options()
+        .ForMetadata<T>(prefix, Field1, Field2, ... Fieldn)
+```
+Where `T` is the type of the meta-data, `prefix` is a string containing the prefix,
+`Field1`, `Field2` through `Fieldn` are strings containing the case sensitive field
+names.
+
+### Restrictions and Limitations
+
+When registering the meta-data through `Options` the prefixes must be unique for
+each meta-data, and they cannot use the same prefixes as the Properties or Values.
+
+If using an Attribute meta-data type then it must be valid for use on `class`.
+
+### Uses for Meta-data
+
+Meta-data can be used to control how the data once loaded is handled. For example
+when managing static entity data it can be used to target either the ORM for 
+code-first managed data, or to create T-SQL scripts that are run against the 
+database.
+
+The converter does nothing directly with the meta-data; it just loads the meta-data
+and makes it available to the application.
+
 ## Usage Examples
 
 I have used previous versions of this approach to CSVs in a number of different
@@ -192,11 +281,11 @@ The following future enhancements are under active development:
 
 - Adding Meta-Data to data-types.
 
-    Will allow control over how, and if, particular data-types are to be 
+    ~~Will allow control over how, and if, particular data-types are to be 
     processed. One data-set will be able to be used with multiple T4 templates 
     for Code generation. It will also enable the T4 templates to be simplified 
     by using a common code module that is controlled by setting properties for 
-    each usage.
+    each usage.~~
     
 - Adding conversions of data-type names.
 
