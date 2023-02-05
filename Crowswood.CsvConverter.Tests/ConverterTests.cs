@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using Crowswood.CsvConverter.Extensions;
+
 namespace Crowswood.CsvConverter.Tests
 {
     [TestClass]
@@ -360,6 +363,85 @@ Values,Foo,1,""Picture"",TestEnum.Data";
             Assert.IsTrue(text.Contains("Values,Foo,1,\"Picture\",TestEnum.Data"), "No values line 0 generated for Foo.");
         }
 
+        [TestMethod]
+        public void MetadataDeserializationTest()
+        {
+            // Arrange
+            var text = @"
+Bar,Foo,""Simple metadata"",77
+Baz,Foo,""Attribute metadata"",99
+Properties,Foo,Id,Name,TestEnum
+Values,Foo,1,""Fred"",TestEnum.Data";
+            var options =
+                new Options()
+                    .ForType<Foo>()
+                    .ForMetadata<Metadata>("Bar", "Name", "Number")
+                    .ForMetadata<MetadataAttribute>("Baz", "Name", "Value");
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize<Foo>(text);
+
+            // Assert
+            Assert.IsTrue(converter.Metadata.Any(), "No metadata available via converter.");
+            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo)), "The metadata for Foo not available via converter.");
+            Assert.IsTrue(converter.Metadata[typeof(Foo)].Any(), "Foo has an empty list of metadata.");
+            Assert.IsTrue(converter.Metadata[typeof(Foo)].Any(md => md is Metadata), 
+                "Foo does not have the metadata of type Metadata.");
+            Assert.IsTrue(
+                converter.Metadata[typeof(Foo)]
+                    .NotNull<object, Metadata>()
+                    .First() is 
+                { 
+                    Name: "Simple metadata", 
+                    Number: 77, 
+                }, "Foo does not have the expected Metadata values.");
+
+            var attributes = TypeDescriptor.GetAttributes(typeof(Foo));
+
+            Assert.IsTrue(attributes.OfType<MetadataAttribute>().Any(), "MetadataAttribute not available via Type.");
+            Assert.IsTrue(
+                attributes.OfType<MetadataAttribute>().First() is
+                {
+                    Name: "Attribute metadata",
+                    Value: 99,
+                }, "Foo does not have the expected MetadataAttribute values.");
+        }
+
+        [TestMethod]
+        public void OptionsValidationTest()
+        {
+            // Arrange
+            var vanillaOptions = new Options();
+
+            var optionsWithSamePropertyAndValuesPrefixes =
+                new Options()
+                    .SetPrefixes("bad", "bad");
+            var optionsWithSameMetadataPrefixAsProperty =
+                new Options()
+                    .ForMetadata<Metadata>(vanillaOptions.PropertyPrefix, "Name");
+            var optionsWithSameMetadataPrefixAsValues =
+                new Options()
+                    .ForMetadata<Metadata>(vanillaOptions.ValuesPrefix, "Name");
+            var optionsWithMetadataWithInvalidNames =
+                new Options()
+                    .ForMetadata<Metadata>("Metadata", "Rubbish Property Name");
+
+            // Assert
+            Assert.ThrowsException<ArgumentException>(
+                () => new Converter(optionsWithSamePropertyAndValuesPrefixes),
+                "Failed to reject options with the same property and values prefixes.");
+            Assert.ThrowsException<ArgumentException>(
+                () => new Converter(optionsWithSameMetadataPrefixAsProperty),
+                "Failed to reject options with metadata with same prefix as property prefix.");
+            Assert.ThrowsException<ArgumentException>(
+                () => new Converter(optionsWithSameMetadataPrefixAsValues),
+                "Failed to reject options with metadata with same prefix as values prefix.");
+            Assert.ThrowsException<ArgumentException>(
+                () => new Converter(optionsWithMetadataWithInvalidNames),
+                "Failed to reject options with metadata that defines invalid property names.");
+        }
+
         #region Model classes
 
         public enum TestEnum
@@ -393,6 +475,19 @@ Values,Foo,1,""Picture"",TestEnum.Data";
         {
             public string? Code { get; set; }
             public string? Description { get; set; }
+        }
+
+        private class Metadata
+        {
+            public string? Name { get; set; }
+            public int Number { get; set; }
+        }
+
+        [AttributeUsage(AttributeTargets.Class)]
+        private class MetadataAttribute : Attribute
+        {
+            public string? Name { get; set; }
+            public int Value { get; set; }
         }
 
         [CsvConverterClass("Foo")]
