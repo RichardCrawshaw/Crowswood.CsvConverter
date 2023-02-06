@@ -442,6 +442,102 @@ Values,Foo,1,""Fred"",TestEnum.Data";
                 "Failed to reject options with metadata that defines invalid property names.");
         }
 
+        [TestMethod]
+        public void MetadataDictionaryNotNullDeserializeTest()
+        {
+            // Arrange
+            var text = @"
+Metadata,Foo,""Bert"",,""""
+Properties,Foo,Id,Name
+Values,Foo,1,""Fred""";
+
+            var options =
+                new Options()
+                    .ForType<Foo>()
+                    .ForMetadata("Metadata", false, "Name", "Value1", "Value2");
+
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize<Foo>(text);
+
+            // Assert
+            Assert.IsTrue(converter.Metadata.Any(), "No meta-data.");
+            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo)), "No meta-data for Foo.");
+            Assert.IsTrue(converter.Metadata[typeof(Foo)].Any(), "Empty meta-data for Foo.");
+
+            var metadata =
+                converter.Metadata[typeof(Foo)]
+                    .NotNull<object, Dictionary<string, string?>>()
+                    .FirstOrDefault();
+            Assert.IsNotNull(metadata, "No dictionary meta-data for Foo.");
+            Assert.IsInstanceOfType(metadata, typeof(Dictionary<string, string?>),
+                "The meta-data is not the expected type.");
+
+            Assert.IsNotNull(metadata,
+                "No dictionary meta-data for Foo.");
+            Assert.IsTrue(metadata.ContainsKey("Name"),
+                "Dictionary meta-data for Foo does not contain 'Name'.");
+            Assert.IsTrue(metadata.ContainsKey("Value1"),
+                "Dictionary meta-data for Foo does not contain 'Value1'.");
+            Assert.IsTrue(metadata.ContainsKey("Value2"),
+                "Dictionary meta-data for Foo does not contain 'Value2'.");
+            Assert.AreEqual("Bert", metadata["Name"],
+                "Dictionary meta-data for Foo has unexpected value for 'Name'.");
+            Assert.AreEqual("", metadata["Value1"],
+                "Dictionary meta-data for Foo has unexpected value for 'Value1'.");
+            Assert.AreEqual("", metadata["Value2"],
+                "Dictionary meta-data for Foo has unexpected value for 'Value2'.");
+        }
+
+        [TestMethod]
+        public void MetadataDictionaryNullableDeserializeTest()
+        {
+            // Arrange
+            var text = @"
+Metadata,Foo,""Bert"",,""""
+Properties,Foo,Id,Name
+Values,Foo,1,""Fred""";
+
+            var options =
+                new Options()
+                    .ForType<Foo>()
+                    .ForMetadata("Metadata", true, "Name", "Value1", "Value2");
+
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize<Foo>(text);
+
+            // Assert
+            Assert.IsTrue(converter.Metadata.Any(), "No meta-data.");
+            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo)), "No meta-data for Foo.");
+            Assert.IsTrue(converter.Metadata[typeof(Foo)].Any(), "Empty meta-data for Foo.");
+
+            var metadata =
+                converter.Metadata[typeof(Foo)]
+                    .NotNull<object, Dictionary<string, string?>>()
+                    .FirstOrDefault();
+            Assert.IsNotNull(metadata, "No dictionary meta-data for Foo.");
+            Assert.IsInstanceOfType(metadata, typeof(Dictionary<string, string?>), 
+                "The meta-data is not the expected type.");
+
+            Assert.IsNotNull(metadata,
+                "No dictionary meta-data for Foo.");
+            Assert.IsTrue(metadata.ContainsKey("Name"),
+                "Dictionary meta-data for Foo does not contain 'Name'.");
+            Assert.IsTrue(metadata.ContainsKey("Value1"),
+                "Dictionary meta-data for Foo does not contain 'Value1'.");
+            Assert.IsTrue(metadata.ContainsKey("Value2"),
+                "Dictionary meta-data for Foo does not contain 'Value2'.");
+            Assert.AreEqual("Bert", metadata["Name"],
+                "Dictionary meta-data for Foo has unexpected value for 'Name'.");
+            Assert.AreEqual(null, metadata["Value1"],
+                "Dictionary meta-data for Foo has unexpected value for 'Value1'.");
+            Assert.AreEqual("", metadata["Value2"],
+                "Dictionary meta-data for Foo has unexpected value for 'Value2'.");
+        }
+
         #region Model classes
 
         public enum TestEnum

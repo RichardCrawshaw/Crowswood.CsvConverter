@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Reflection;
 using Crowswood.CsvConverter.Extensions;
 
@@ -519,7 +518,7 @@ namespace Crowswood.CsvConverter
              lines
                 .Where(line => this.options.OptionMetadata.Any(md => line.StartsWith(md.Prefix)))
                 .Select(line => line.Split(','))
-                .Select(items => items.Select(item => item.Trim()).ToArray())
+                .Select(items => RejoinSplitQuotes(items))
                 .Where(items => this.options.OptionMetadata.Any(md => items[0] == md.Prefix))
                 .Where(items => items[1] == type.Name)
                 .Select(items =>
@@ -544,14 +543,13 @@ namespace Crowswood.CsvConverter
         {
             if (optionMetadata is null) return null;
 
-            // Using pattern matching would be nice but that appears to be unable to distinguish
-            // between Dictionary<TKey, TValue> and Dictionary<TKey, TValue?>.
-
-            if (optionMetadata.Type == typeof(Dictionary<string, string>))
-                return GetMetadataDictionaryNonNullValue(optionMetadata.PropertyNames, propertyValues);
-
-            if (optionMetadata.Type == typeof(Dictionary<string, string?>))
-                return GetMetadataDictionaryNullValue(optionMetadata.PropertyNames, propertyValues);
+            if (optionMetadata is OptionMetadataDictionary omd)
+            {
+                if (omd.AllowNulls)
+                    return GetMetadataDictionaryNullValue(optionMetadata.PropertyNames, propertyValues);
+                else
+                    return GetMetadataDictionaryNonNullValue(optionMetadata.PropertyNames, propertyValues);
+            }
             
             return 
                 GetMetadata(optionMetadata.CreateInstance(),
@@ -597,7 +595,7 @@ namespace Crowswood.CsvConverter
                     index => values[index] switch
                     {
                         "" or "\"\"" => string.Empty,
-                        _ => values[index],
+                        _ => ConvertValue(values[index], typeof(string))?.ToString() ?? string.Empty,
                     });
 
         /// <summary>
@@ -616,7 +614,7 @@ namespace Crowswood.CsvConverter
                     {
                         "" => null,
                         "\"\"" => string.Empty,
-                        _ => values[index],
+                        _ => ConvertValue(values[index], typeof(string))?.ToString() ?? string.Empty,
                     });
 
         /// <summary>
@@ -857,11 +855,12 @@ namespace Crowswood.CsvConverter
                     nameof(options));
 
             if (this.options.OptionMetadata
+                    .Where(om => om is not OptionMetadataDictionary)
                     .Select(om => new { OptionsMetadata = om, Properties = om.Type.GetProperties(), })
                     .Select(n => new { n.OptionsMetadata, PropertyNames = n.Properties.Select(p => p.Name).ToList(), })
                     .Any(n => n.OptionsMetadata.PropertyNames.Any(pn => !n.PropertyNames.Contains(pn))))
                 throw new ArgumentException(
-                    "The metadata must only contain property names defined by the targeted type.",
+                    "The metadata may only contain property names defined by the targeted type.",
                     nameof(options));
         }
 
