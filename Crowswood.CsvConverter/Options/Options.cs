@@ -113,6 +113,21 @@ namespace Crowswood.CsvConverter
             ForMetadata(new OptionMetadata<TMetadata>(prefix, propertyNames));
 
         /// <summary>
+        /// Adds a new <see cref="OptionMetadataDictionary"/> for the specific <paramref name="prefix"/>
+        /// and <paramref name="propertyNames"/> with nulls being allowed or not through 
+        /// <paramref name="allowNulls"/>.
+        /// </summary>
+        /// <param name="prefix">A <see cref="string"/> that contains the prefix.</param>
+        /// <param name="allowNulls">True if null values are allowed; false otherwise.</param>
+        /// <param name="propertyNames">A <see cref="string[]"/> that contains the property names.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ForMetadata(string prefix, bool allowNulls,params string[] propertyNames)=>
+            AddOptionMetadata(new OptionMetadataDictionary(prefix, propertyNames) 
+            {
+                AllowNulls = allowNulls
+            });
+
+        /// <summary>
         /// Adss the specified <paramref name="optionType"/>.
         /// </summary>
         /// <typeparam name="TObject">The type that the <see cref="OptionType"/> is for.</typeparam>
@@ -171,8 +186,7 @@ namespace Crowswood.CsvConverter
             return this;
         }
 
-        private Options AddOptionMetadata<TMetadata>(OptionMetadata<TMetadata> optionMetadata)
-            where TMetadata : class, new()
+        private Options AddOptionMetadata(OptionMetadata optionMetadata)
         {
             if (!this.none)
                 this.optionMetadata.Add(optionMetadata);

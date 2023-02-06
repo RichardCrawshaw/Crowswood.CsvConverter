@@ -1,7 +1,4 @@
-﻿using System.Reflection;
-using Crowswood.CsvConverter.Extensions;
-
-namespace Crowswood.CsvConverter
+﻿namespace Crowswood.CsvConverter
 {
     /// <summary>
     /// An abstract class that contains information about the metadata that has been configured
@@ -34,89 +31,6 @@ namespace Crowswood.CsvConverter
         {
             this.Prefix = prefix;
             this.PropertyNames = propertyNames;
-        }
-
-        #endregion
-
-        #region Static factory creation methods
-
-        /// <summary>
-        /// Static factory method to create and return an instance of <see cref="OptionMetadata{T}"/>
-        /// for the specified <paramref name="prefix"/> and <paramref name="propertyNames"/>.
-        /// </summary>
-        /// <typeparam name="T">The <see cref="Type"/> that this instance handles.</typeparam>
-        /// <param name="prefix">A <see cref="string"/> that contains the prefix.</param>
-        /// <param name="propertyNames">A <see cref="string[]"/> that contains the property names.</param>
-        /// <returns>An <see cref="OptionMetadata{T}"/> instance.</returns>
-        /// <remarks>
-        /// The <paramref name="propertyNames"/> must match the name of the properties of 
-        /// <typeparamref name="T"/>.
-        /// </remarks>
-        public static OptionMetadata<T> Create<T>(string prefix, params string[] propertyNames)
-            where T : class, new() =>
-            propertyNames.All(name => typeof(T).GetProperty(name) != null)
-                ? new(prefix, propertyNames)
-                : throw new ArgumentException(
-                    $"The {nameof(propertyNames)} do not match the properties of '{typeof(T).Name}.");
-
-        /// <summary>
-        /// Static factory method to create and return an instance of <see cref="OptionMetadata"/> 
-        /// for <paramref name="genericType"/> with the specified <paramref name="prefix"/> and 
-        /// <paramref name="propertyNames"/>.
-        /// </summary>
-        /// <param name="genericType">The <see cref="Type"/> that this instance handles.</param>
-        /// <param name="prefix">A <see cref="string"/> that contains the prefix.</param>
-        /// <param name="propertyNames">A <see cref="string[]"/> that contains the property names.</param>
-        /// <returns>An <see cref="OptionMetadata"/> instance.</returns>
-        /// <exception cref="ArgumentException">
-        /// If <paramref name="genericType"/> is not a class with a parameterless constructor.
-        /// or If <paramref name="prefix"/>is null, empty or only white space.
-        /// or If <paramref name="propertyNames"/> is an empty array.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">If the create method for <see cref="OptionMetadata{T}"/> cannot be bound to.</exception>
-        /// <remarks>
-        /// Uses reflection to find and invoke the generic <seealso cref="Create{T}(string, string[])"/>
-        /// method.
-        /// </remarks>
-        public static OptionMetadata Create(Type genericType, string prefix, params string[] propertyNames)
-        {
-            if (!genericType.IsClass || genericType.GetConstructor(Array.Empty<Type>()) is null)
-                throw new ArgumentException(
-                    $"'{genericType.Name}' must be a reference type with a parameterless constructor.",
-                    nameof(genericType));
-            if (string.IsNullOrWhiteSpace(prefix))
-                throw new ArgumentException(
-                    $"'{nameof(prefix)}' must be non-null, non-empty and non-whitespace.",
-                    nameof(prefix));
-            if (propertyNames.Length == 0)
-                throw new ArgumentException(
-                    $"'{nameof(propertyNames)}' must not be an empty array.",
-                    nameof(propertyNames));
-
-            var myType = typeof(OptionMetadata);
-            const string methodName = "Create";
-
-            var parameters =
-                new object[]
-                {
-                    prefix,
-                    propertyNames,
-                };
-            var argumentTypes =
-                parameters
-                    .Select(parameter => parameter.GetType())
-                    .ToArray();
-            var returnType = myType.MakeGenericType(genericType);
-
-            var method =
-                myType.GetGenericMethod(methodName,
-                                        BindingFlags.Public |
-                                        BindingFlags.Static,
-                                        genericType, argumentTypes, returnType);
-            var result = (OptionMetadata?)
-                method?.Invoke(null, parameters) ??
-                throw new InvalidOperationException($"Failed to bind to '{methodName}' for '{genericType.Name}'.");
-            return result;
         }
 
         #endregion
@@ -159,6 +73,46 @@ namespace Crowswood.CsvConverter
 
         /// <inheritdoc/>
         public override object CreateInstance() => new T();
+
+        #endregion
+    }
+
+    /// <summary>
+    /// A sealed class that indicates that the metadata is a <see cref="Dictionary{TKey, TValue}"/>
+    /// of <see cref="string"/> keyed by <see cref="string"/>; the value may be nullable depending
+    /// on <seealso cref="AllowNulls"/>.
+    /// </summary>
+    public sealed class OptionMetadataDictionary : OptionMetadata
+    {
+        #region Properties
+
+        /// <summary>
+        /// Indicates whether the dictionary should support a nullable value or not.
+        /// </summary>
+        public bool AllowNulls { get; init; } = false;
+
+        /// <inheritdoc/>
+        public override Type Type =>
+            this.AllowNulls
+            ? typeof(Dictionary<string, string?>)
+            : typeof(Dictionary<string, string>);
+
+        #endregion
+
+        #region Constructors
+
+        public OptionMetadataDictionary(string prefix, params string[] propertyNames)
+            : base(prefix, propertyNames) { }
+
+        #endregion
+
+        #region Methods
+
+        /// <inheritdoc/>
+        public override object CreateInstance() =>
+            this.AllowNulls
+            ? (object)new Dictionary<string, string?>()
+            : (object)new Dictionary<string, string>();
 
         #endregion
     }
