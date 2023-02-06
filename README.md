@@ -36,7 +36,7 @@ String values are contained in "double-quotes". Double-quoted string can contain
 commas.
 
 It also supports meta-data. This is applied on a per-data-type basis. See 
-**Meta-data** below.
+**[Meta-data](#metadata)** below.
 
 ### Example Data
 
@@ -57,8 +57,8 @@ public class Foo
 
 The "Foo" in all lines of the data is the name of the class that will be 
 created. The property names in the Properties line are the names of the 
-properties of `Foo`. These can be redefined: see the **Options** and 
-**Attributes** sections below.
+properties of `Foo`. These can be redefined: see the **[Options](#options)**
+and **[Attributes](#attributes)** sections below.
 
 ### Comments
 
@@ -91,14 +91,15 @@ required `Options` then call either `Deserialize(text)` or
 - `stream` is a `Stream` that contains the serialized data.
 - `values` is an `IEnumerable<T>` of the data that is to be serialized.
 
-### Options
+### Options [#options]
 
 Control the behaviour of the converter. If in doubt simply use `Options.None`, 
 this provides a useful default.
 
 Options allow control over Properties and Values prefixes and the set of Comment
 prefixes. They also allow the definition of the data types that are to be 
-converted, including changing the name of the data-type, and or of any property.
+converted, this includes changing the name of the data-type, and or the name of 
+any property.
 
 #### Example
 
@@ -118,7 +119,7 @@ var options =
         .ForMember<Foo>(foo => foo.Name, "FullName");
 ```
 
-## Attributes
+## Attributes [#attributes]
 
 There are a pair of `Attribute`s that can be used to decorate classes and their 
 members rather than using an `Options` object with `OptionsType<T>` and 
@@ -158,7 +159,7 @@ public class Foo
 }
 ```
 
-## Meta-data
+## Meta-data {#metadata}
 
 Meta-data can be defined in the CSV data on a per-data-type basis. This is then
 applied to the appropriate data-type. The format of the meta-data in the CSV is
@@ -183,7 +184,7 @@ There are three types of meta-data:
     it can be null. The practical difference between the two is how empty strings
     are handled. If the value cannot be null then both no value `...,,...` two 
     commas without anything between them, and an empty string `...,"",...` both 
-    generate a value of empty string. If teh value can be null then no value will
+    generate a value of empty string. If the value can be null then no value will
     produce null.
 
 2. An object with properties
@@ -212,6 +213,7 @@ There are three types of meta-data:
 ### Useage
 
 Meta-data is enabled through `Options`.
+
 Each separate meta-data type must be registered. This includes the prefix used to 
 identify that the line is a particular meta-data type and the names of the properties
 that are to be populated in the same order that the values are specified in the CSV
@@ -224,8 +226,18 @@ var options =
         .ForMetadata<T>(prefix, Field1, Field2, ... Fieldn)
 ```
 Where `T` is the type of the meta-data, `prefix` is a string containing the prefix,
-`Field1`, `Field2` through `Fieldn` are strings containing the case sensitive field
-names.
+`Field1`, `Field2` through `Fieldn` are strings containing the field names. The 
+field names are case sensitive.
+
+When using dictionary metadata use this
+```
+var options =
+    new Options()
+        .ForMetadata(prefix, allowNulls, Field1, Field2, ... Fieldn)
+```
+The absence of the generic parameter and the presence of the `allowNulls` parameter 
+automatically indicates that the meta-data is to be held in a dictionary and its 
+value controls whether the dictionary allows null values or not.
 
 ### Restrictions and Limitations
 
@@ -277,9 +289,10 @@ The following future enhancements are under active development:
     
     This will be useful for data transformation such as when processing through 
     a T4 template where the data is simply written out as text without any need 
-    entity types.
+    entity types. It would remove the need to have classes defined for each 
+    data-type.
 
-- Adding Meta-Data to data-types.
+- ~~Adding Meta-Data to data-types.~~
 
     ~~Will allow control over how, and if, particular data-types are to be 
     processed. One data-set will be able to be used with multiple T4 templates 
@@ -294,6 +307,11 @@ The following future enhancements are under active development:
     different values from the same inputs, such as generating Entity Framework 
     seed data vs T-SQL script where the table names are pluralised but the 
     entity classes are singular.
+    
+    For example a `User` entity class, but a `Users` database table.
+    
+    Just appending 's' on the end is **not** sufficient: a `Matrix` entity and 
+    a `Matrices` table, or `Child` entity and `Children` table, etc.
     
 - Adding conversions of values.
 
