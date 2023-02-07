@@ -538,6 +538,146 @@ Values,Foo,1,""Fred""";
                 "Dictionary meta-data for Foo has unexpected value for 'Value2'.");
         }
 
+        [TestMethod]
+        public void AutomaticIncrementDeserializationTest()
+        {
+            // Arrange
+            var text = @"
+Properties,Foo,Id,Name
+Values,Foo,#,""Fred""
+Values,Foo,#,""Bert""
+Values,Foo,#,""Harry""";
+            var options =
+                new Options()
+                    .ForType<Foo>();
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize<Foo>(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize.");
+
+            Assert.AreEqual(3, data.Count(), "Unexpected number of records.");
+            Assert.AreEqual(1, data.Count(n => n.Name == "Fred"), "Failed to find record for 'Fred'.");
+            Assert.AreEqual(1, data.Count(n => n.Name == "Bert"), "Failed to find record for 'Bert'.");
+            Assert.AreEqual(1, data.Count(n => n.Name == "Harry"), "Failed to find record for 'Harry'.");
+
+            Assert.AreEqual(1, data.First(n => n.Name == "Fred").Id, "Unexpected Id for the record for 'Fred'.");
+            Assert.AreEqual(2, data.First(n => n.Name == "Bert").Id, "Unexpected Id for the record for 'Bert'.");
+            Assert.AreEqual(3, data.First(n => n.Name == "Harry").Id, "Unexpected Id for the record for 'Harry'.");
+
+            Assert.AreEqual(1, data.Skip(0).First().Id, "Unexpected Id for first record.");
+            Assert.AreEqual(2, data.Skip(1).First().Id, "Unexpected Id for second record.");
+            Assert.AreEqual(3, data.Skip(2).First().Id, "Unexpected Id for third record.");
+        }
+
+        [TestMethod]
+        public void AutomaticIncrementMetadataDeserialization1Test()
+        {
+            // Arrange
+            var text = @"
+Metadata,Foo,#,""A""
+Properties,Foo,Id,Name
+Values,Foo,#,""Fred""
+Values,Foo,#,""Bert""";
+            var options =
+                new Options()
+                    .ForType<Foo>()
+                    .ForMetadata<Baz>("Metadata", "Id", "Name");
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize<Foo>(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize text.");
+            Assert.AreEqual(2, data.Count(n => n.GetType() == typeof(Foo)), "Unexpected number of Foo entities.");
+
+            var fooEntities = data.Where(n => n.GetType() == typeof(Foo));
+
+            Assert.AreEqual(1, fooEntities.Select(foo => foo.Id).Min(), "Unexpected lowest Id of Foo entities.");
+            Assert.AreEqual(2, fooEntities.Select(foo => foo.Id).Max(), "Unexpected highest Id of Foo entities.");
+            Assert.IsFalse(
+                fooEntities
+                    .GroupBy(n => n.Id)
+                    .Any(n => n.Count() > 1), "Found duplicate Ids for Foo entities.");
+
+
+            var bazMetadata = new List<Baz>();
+            foreach (Baz baz in converter.Metadata[typeof(Foo)])
+                bazMetadata.Add(baz);
+
+            Assert.AreEqual(1, bazMetadata.Count(), "Unexpected amound of Baz metadata.");
+            Assert.AreEqual(1, bazMetadata.Select(baz => baz.Id).Min(), "Unexpected lowest Id of Baz entities.");
+            Assert.AreEqual(1, bazMetadata.Select(bar => bar.Id).Max(), "Unexpected highest Id of Baz entities.");
+            Assert.IsFalse(
+                bazMetadata
+                    .GroupBy(n => n.Id)
+                    .Any(n => n.Count() > 1), "Found duplicate Ids for Baz metadata.");
+        }
+
+        [TestMethod]
+        public void AutomaticIncrementMetadataDeserialization2Test()
+        {
+            // Arrange
+            var text = @"
+Metadata,Foo,#,""A""
+Properties,Foo,Id,Name
+Values,Foo,#,""Fred""
+Values,Foo,#,""Bert""
+
+Metadata,Foo,#,""B""
+Properties,Bar,Id,Name
+Values,Bar,#,""Monday""
+Values,Bar,#,""Tuesday""";
+            var options =
+                new Options()
+                    .ForType<Foo>()
+                    .ForType<Bar>()
+                    .ForMetadata<Baz>("Metadata", "Id", "Name");
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize<Foo>(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize text.");
+            Assert.AreEqual(2, data.Count(n => n.GetType() == typeof(Foo)), "Unexpected number of Foo entities.");
+            Assert.AreEqual(2, data.Count(n => n.GetType() == typeof(Bar)), "Unexpected number of Bar entities.");
+
+            var fooEntities = data.Where(n => n.GetType() == typeof(Foo));
+            var barEntities = data.Where(n => n.GetType() == typeof(Bar));
+
+            Assert.AreEqual(1, fooEntities.Select(foo => foo.Id).Min(), "Unexpected lowest Id of Foo entities.");
+            Assert.AreEqual(2, fooEntities.Select(foo => foo.Id).Max(), "Unexpected highest Id of Foo entities.");
+            Assert.IsFalse(
+                fooEntities
+                    .GroupBy(n => n.Id)
+                    .Any(n => n.Count() > 1), "Found duplicate Ids for Foo entities.");
+
+            Assert.AreEqual(1, barEntities.Select(bar => bar.Id).Min(), "Unexpected lowest Id of Bar entities.");
+            Assert.AreEqual(2, barEntities.Select(bar => bar.Id).Max(), "Unexpected highest Id of Bar entities.");
+            Assert.IsFalse(
+                barEntities
+                    .GroupBy(n => n.Id)
+                    .Any(n => n.Count() > 1), "Found duplicate Ids for Bar entities.");
+
+            var bazMetadata = new List<Baz>();
+            foreach (Baz baz in converter.Metadata[typeof(Foo)])
+                bazMetadata.Add(baz);
+            foreach (Baz baz in converter.Metadata[typeof(Bar)])
+                bazMetadata.Add(baz);
+
+            Assert.AreEqual(2, bazMetadata.Count(), "Unexpected amound of Baz metadata.");
+            Assert.AreEqual(1, bazMetadata.Select(baz => baz.Id).Min(), "Unexpected lowest Id of Baz entities.");
+            Assert.AreEqual(2, bazMetadata.Select(bar => bar.Id).Max(), "Unexpected highest Id of Baz entities.");
+            Assert.IsFalse(
+                bazMetadata
+                    .GroupBy(n => n.Id)
+                    .Any(n => n.Count() > 1), "Found duplicate Ids for Baz metadata.");
+        }
+
         #region Model classes
 
         public enum TestEnum
