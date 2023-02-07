@@ -82,6 +82,64 @@ written; this is a possible future enhancement.
 Blank lines are also ignored; as are any lines that cannot be interpreted as 
 valid data.
 
+### Automatic Increment
+
+This is a feature to support the creation of Primary Key values for database 
+entities. These generally start from 1, so this is the default. It is only 
+supported on numeric types. A future enhancement will be to allow this to be 
+configured on a per data-type basis.
+
+To use the Automatic Increment feature simply supply a single `#` character 
+as the data, no quotes.
+```
+Properties,Foo,Id,Name
+Values,Foo,#,"Fred"
+Values,Foo,#,"Bert"
+Values,Foo,#,"Harry"
+```
+When the above CSV data is deserialized the Fred instance will have an Id of 1,
+the Bert instance an Id of 2, and Harry 3.
+
+This makes the management of the data generally easier; just copy and paste,
+move lines around, etc., and the Id fields will be updated accordingly.
+
+If multiple uses are made per line of CSV data then the value will be incremented 
+that number of times per entity.
+```
+Properties,Foo,Id,Value,Number
+Values,Foo,#,#,#
+```
+Would result in an entity with 
+```
+    Id = 1,
+    Value = 2,
+    Number = 3,
+```
+
+Also skipping a line, will not increment the value for that entity:
+```
+Properties,Foo,Id,Name
+Values,Foo,#,"Fred"
+Values,Foo,99,"Bert"
+Values,Foo,#,"Harry"
+```
+Results in
+```
+    Fred: Id = 1,
+    Bert: Id = 99,
+    Harry: Id = 2,
+```
+
+#### Serializing data
+
+When serializing data to text there is no support for automatic increment of 
+values. The actual value of the entity will be included. This prevents the 
+situation where there is a data-set with values from 1-n, which serializes 
+using the automatic increment feature, then when one of those entities is 
+removed that almost exactly identical data cannot serialize with automatic 
+increment. This type of change in bahaviour is only going to cause confusion; 
+it is better that it does not exist in the first place.
+
 ## Usage
 
 Simply create an instance of `Crowswood.CsvConverter.Converter` supplying the 
@@ -269,12 +327,12 @@ test projects.
 ## Future Enhancements
 
 The following future enhancements are under active development:
-- Automatic increments.
+- ~~Automatic increments.~~
 
-    This is intended to assist with generating seed data for database entity
+    ~~This is intended to assist with generating seed data for database entity
     objects. Have a character combination that is the same on each line, so the
     human maintainer doesn't have to worry about ensuring unique IDs for each 
-    data row.
+    data row.~~
 
 - Referencing records of other data.
 
@@ -317,3 +375,10 @@ The following future enhancements are under active development:
 
     This will enable Enums to be specified in the CSV data, but strings, without
     the Enum type, to be output in a T-SQL script.
+
+- Configuration information in the CSV data.
+
+    Add support for configuration data in the CSV data itself. This gives the data 
+    maintainer direct control over how the data is handled. Such as being able to 
+    specify the initial value of Automatic Increment values, or which fields are 
+    used when referencing other data.
