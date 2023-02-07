@@ -36,7 +36,7 @@ String values are contained in "double-quotes". Double-quoted string can contain
 commas.
 
 It also supports meta-data. This is applied on a per-data-type basis. See 
-**[Meta-data](#metadata)** below.
+**[Metadata](#metadata)** below.
 
 ### Example Data
 
@@ -149,7 +149,7 @@ required `Options` then call either `Deserialize(text)` or
 - `stream` is a `Stream` that contains the serialized data.
 - `values` is an `IEnumerable<T>` of the data that is to be serialized.
 
-### Options [#options]
+### Options
 
 Control the behaviour of the converter. If in doubt simply use `Options.None`, 
 this provides a useful default.
@@ -177,7 +177,7 @@ var options =
         .ForMember<Foo>(foo => foo.Name, "FullName");
 ```
 
-## Attributes [#attributes]
+## Attributes
 
 There are a pair of `Attribute`s that can be used to decorate classes and their 
 members rather than using an `Options` object with `OptionsType<T>` and 
@@ -217,7 +217,7 @@ public class Foo
 }
 ```
 
-## Meta-data {#metadata}
+## Metadata
 
 Meta-data can be defined in the CSV data on a per-data-type basis. This is then
 applied to the appropriate data-type. The format of the meta-data in the CSV is
@@ -260,13 +260,16 @@ There are three types of meta-data:
     ```
     var attributes = TypeDescriptor.GetAttributes(typeof(Foo));
     ```
+    Appending a call to `.OfType<AttributeType>()` will filter the returned attributes
+    to just those of that type as an `IEnumerable<AttributeType>`.
+    
     If the specified type for the meta-data is derived from `Attribute` then this
     type of meta-data is automatically generated.
     In all other respects they are the same as the meta-data accessed through the 
     `Metadata` property on the `converter`.
     
     **Note**: these attributes *cannot* be accessed through reflection and the 
-    `GetCustomAttribute` method.
+    `GetCustomAttribute` family of methods.
 
 ### Useage
 
