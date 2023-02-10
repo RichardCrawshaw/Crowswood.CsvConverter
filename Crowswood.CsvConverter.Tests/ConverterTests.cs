@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using Crowswood.CsvConverter.Extensions;
+using System.Linq;
+using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
 
 namespace Crowswood.CsvConverter.Tests
 {
@@ -384,12 +386,12 @@ Values,Foo,1,""Fred"",TestEnum.Data";
 
             // Assert
             Assert.IsTrue(converter.Metadata.Any(), "No metadata available via converter.");
-            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo)), "The metadata for Foo not available via converter.");
-            Assert.IsTrue(converter.Metadata[typeof(Foo)].Any(), "Foo has an empty list of metadata.");
-            Assert.IsTrue(converter.Metadata[typeof(Foo)].Any(md => md is Metadata), 
+            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo).Name), "The metadata for Foo not available via converter.");
+            Assert.IsTrue(converter.Metadata[typeof(Foo).Name].Any(), "Foo has an empty list of metadata.");
+            Assert.IsTrue(converter.Metadata[typeof(Foo).Name].Any(md => md is Metadata), 
                 "Foo does not have the metadata of type Metadata.");
             Assert.IsTrue(
-                converter.Metadata[typeof(Foo)]
+                converter.Metadata[typeof(Foo).Name]
                     .NotNull<object, Metadata>()
                     .First() is 
                 { 
@@ -463,11 +465,11 @@ Values,Foo,1,""Fred""";
 
             // Assert
             Assert.IsTrue(converter.Metadata.Any(), "No meta-data.");
-            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo)), "No meta-data for Foo.");
-            Assert.IsTrue(converter.Metadata[typeof(Foo)].Any(), "Empty meta-data for Foo.");
+            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo).Name), "No meta-data for Foo.");
+            Assert.IsTrue(converter.Metadata[typeof(Foo).Name].Any(), "Empty meta-data for Foo.");
 
             var metadata =
-                converter.Metadata[typeof(Foo)]
+                converter.Metadata[typeof(Foo).Name]
                     .NotNull<object, Dictionary<string, string?>>()
                     .FirstOrDefault();
             Assert.IsNotNull(metadata, "No dictionary meta-data for Foo.");
@@ -511,11 +513,11 @@ Values,Foo,1,""Fred""";
 
             // Assert
             Assert.IsTrue(converter.Metadata.Any(), "No meta-data.");
-            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo)), "No meta-data for Foo.");
-            Assert.IsTrue(converter.Metadata[typeof(Foo)].Any(), "Empty meta-data for Foo.");
+            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo).Name), "No meta-data for Foo.");
+            Assert.IsTrue(converter.Metadata[typeof(Foo).Name].Any(), "Empty meta-data for Foo.");
 
             var metadata =
-                converter.Metadata[typeof(Foo)]
+                converter.Metadata[typeof(Foo).Name]
                     .NotNull<object, Dictionary<string, string?>>()
                     .FirstOrDefault();
             Assert.IsNotNull(metadata, "No dictionary meta-data for Foo.");
@@ -594,7 +596,8 @@ Values,Foo,#,""Bert""";
             Assert.IsNotNull(data, "Failed to deserialize text.");
             Assert.AreEqual(2, data.Count(n => n.GetType() == typeof(Foo)), "Unexpected number of Foo entities.");
 
-            var fooEntities = data.Where(n => n.GetType() == typeof(Foo));
+            var fooEntities = 
+                data.Where(n => n.GetType() == typeof(Foo));
 
             Assert.AreEqual(1, fooEntities.Select(foo => foo.Id).Min(), "Unexpected lowest Id of Foo entities.");
             Assert.AreEqual(2, fooEntities.Select(foo => foo.Id).Max(), "Unexpected highest Id of Foo entities.");
@@ -603,12 +606,15 @@ Values,Foo,#,""Bert""";
                     .GroupBy(n => n.Id)
                     .Any(n => n.Count() > 1), "Found duplicate Ids for Foo entities.");
 
+            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo).Name), "There is no Foo metadata.");
 
-            var bazMetadata = new List<Baz>();
-            foreach (Baz baz in converter.Metadata[typeof(Foo)])
-                bazMetadata.Add(baz);
+            var bazMetadata = 
+                converter.Metadata[typeof(Foo).Name]
+                    .Where(metadata => metadata is Baz)
+                    .Cast<Baz>()
+                    .ToList();
 
-            Assert.AreEqual(1, bazMetadata.Count(), "Unexpected amound of Baz metadata.");
+            Assert.AreEqual(1, bazMetadata.Count, "Unexpected amound of Baz metadata.");
             Assert.AreEqual(1, bazMetadata.Select(baz => baz.Id).Min(), "Unexpected lowest Id of Baz entities.");
             Assert.AreEqual(1, bazMetadata.Select(bar => bar.Id).Max(), "Unexpected highest Id of Baz entities.");
             Assert.IsFalse(
@@ -627,7 +633,7 @@ Properties,Foo,Id,Name
 Values,Foo,#,""Fred""
 Values,Foo,#,""Bert""
 
-Metadata,Foo,#,""B""
+Metadata,Bar,#,""B""
 Properties,Bar,Id,Name
 Values,Bar,#,""Monday""
 Values,Bar,#,""Tuesday""";
@@ -664,9 +670,9 @@ Values,Bar,#,""Tuesday""";
                     .Any(n => n.Count() > 1), "Found duplicate Ids for Bar entities.");
 
             var bazMetadata = new List<Baz>();
-            foreach (Baz baz in converter.Metadata[typeof(Foo)])
+            foreach (Baz baz in converter.Metadata[typeof(Foo).Name])
                 bazMetadata.Add(baz);
-            foreach (Baz baz in converter.Metadata[typeof(Bar)])
+            foreach (Baz baz in converter.Metadata[typeof(Bar).Name])
                 bazMetadata.Add(baz);
 
             Assert.AreEqual(2, bazMetadata.Count(), "Unexpected amound of Baz metadata.");
@@ -676,6 +682,167 @@ Values,Bar,#,""Tuesday""";
                 bazMetadata
                     .GroupBy(n => n.Id)
                     .Any(n => n.Count() > 1), "Found duplicate Ids for Baz metadata.");
+        }
+
+        [TestMethod]
+        public void DynamicDeserializationSimpleTest()
+        {
+            DynamicDeserializationImplementation(@"
+Properties,FooBar,Id,Name,Value,Thing
+Values,FooBar,#,""Fred"",77,Alpha
+Values,FooBar,#,""Bert"",99,Beta",
+                "FooBar", new[] { "Id", "Name", "Value", "Thing", },
+                new[] { "Id", "Name", "Value", "Thing", },
+                new[] { "1", "Fred", "77", "Alpha", },
+                new[] { "2", "Bert", "99", "Beta", });
+        }
+
+        [TestMethod]
+        public void DynamicDeserializationExtraPropertiesTest()
+        {
+            DynamicDeserializationImplementation(@"
+Properties,FooBar,Id,Name,Value,Thing,Other
+Values,FooBar,#,""Fred"",77,Alpha,""Mike""
+Values,FooBar,#,""Bert"",99,Beta,""Oscar""",
+                "FooBar", new[] {"Id","Name","Value","Thing",},
+                new[] { "Id", "Name", "Value", "Thing", },
+                new[] { "1", "Fred", "77", "Alpha", },
+                new[] { "2", "Bert", "99", "Beta", });
+        }
+
+        [TestMethod]
+        public void DynamicDeserializationExtraValuesTest()
+        {
+            DynamicDeserializationImplementation(@"
+Properties,FooBar,Id,Name,Value,Thing
+Values,FooBar,#,""Fred"",77,Alpha
+Values,FooBar,#,""Bert"",99,Beta",
+                "FooBar", new[] { "Id", "Name", "Value", "Thing", "Other", },
+                new[] { "Id", "Name", "Value", "Thing", "Other", },
+                new[] { "1", "Fred", "77", "Alpha", "", },
+                new[] { "2", "Bert", "99", "Beta", "", });
+        }
+
+        [TestMethod]
+        public void DynamicDeserializationTypelessMetadataTest()
+        {
+            // Arrange
+            var text = @"
+Metadata,FooBar,1,""Blue""
+Properties,FooBar,Id,Name,Value,Thing
+Values,FooBar,#,""Fred"",77,Alpha
+Values,FooBar,#,""Bert"",99,Beta";
+            var options =
+                new Options()
+                    .ForMetadata("Metadata", false, "Id", "Name")
+                    .ForType("FooBar", "Id", "Name", "Value", "Thing");
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize(text);
+
+            // Assert
+            Assert.IsNotNull(converter.Metadata, "No metadata");
+            Assert.IsTrue(converter.Metadata.ContainsKey("FooBar"), "No FooBar metadata.");
+
+            Assert.AreEqual(1, converter.Metadata["FooBar"].Count, "Unexpected number of metadata items.");
+
+            var metadata = converter.Metadata["FooBar"].First() as Dictionary<string, string>;
+            Assert.IsNotNull(metadata, "Metadata for FooBar is not of the expected type.");
+
+            Assert.AreEqual(2, metadata.Count, "Unexpected number of metadata elements for FooBar.");
+            Assert.IsTrue(metadata.ContainsKey("Id"), "Metadata for FooBar does not contain element for Id.");
+            Assert.AreEqual("1", metadata["Id"], "Unexpected value of metadata for FooBar element Id.");
+            Assert.IsTrue(metadata.ContainsKey("Name"), "Metadata for FooBar does not contain element for Name.");
+            Assert.AreEqual("Blue", metadata["Name"], "Unexpected value of metadata for FooBar element Name.");
+        }
+
+        [TestMethod]
+        public void DynamicSerializationSimpleTest()
+        {
+            DynamicSerializationImplemation(
+                data: new()
+                {
+                    ["FooBar"] =
+                        (
+                            new[] { "Id", "Name", "Value", "Thing" },
+                            new List<string[]>
+                            {
+                                new[] { "1", "Fred", "77", "Alpha",},
+                                new[] { "2", "Bert", "99", "Beta",},
+                            }
+                        ),
+                },
+                typeName: "FooBar", propertyNames: new[] { "Id", "Name", "Value", "Thing", },
+                expectedProperties: "Properties,FooBar,Id,Name,Value,Thing",
+                expectedValues: new[]
+                {
+                    "Values,FooBar,\"1\",\"Fred\",\"77\",\"Alpha\"",
+                    "Values,FooBar,\"2\",\"Bert\",\"99\",\"Beta\"",
+                });
+        }
+
+        private static void DynamicDeserializationImplementation(string text,
+                                                                 string typeName, string[] propertyNames,
+                                                                 string[] expectedNames,
+                                                                 params string[][] expectedValues)
+        {
+            // Arrange
+            var options =
+                new Options()
+                    .ForType(typeName, propertyNames[0], propertyNames[1..^0]);
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize to dynamic data.");
+            Assert.AreEqual(1, data.Count, "Unexpected number of data types.");
+
+            var actualNames = data[typeName].Item1;
+            Assert.AreEqual(expectedNames.Length, actualNames.Length, 
+                "Unexpected number of {0} names.", typeName);
+
+            for (var index = 0; index < expectedNames.Length; index++)
+                Assert.AreEqual(expectedNames[index], actualNames[index],
+                    "Unexpected name of {0} names {1}.", typeName, index);
+
+            var actualValues = data[typeName].Item2;
+            Assert.AreEqual(expectedValues.Length, actualValues.Count(), 
+                "Unexpected number of {0} values.", typeName);
+
+            for(var index = 0; index < expectedValues.Length; index++)
+            {
+                var actualValuesN = actualValues.Skip(index).First();
+                Assert.AreEqual(expectedValues[index].Length, actualValuesN.Length,
+                    "Unexpected number of {0} {1} values.", typeName, index);
+                for(var innerIndex = 0; innerIndex < expectedValues[index].Length; innerIndex++)
+                    Assert.AreEqual(actualValuesN[innerIndex], expectedValues[index][innerIndex],
+                        "Unexpected value of {0} {1} values {2}.", typeName, index, innerIndex);
+            }
+        }
+
+        private static void DynamicSerializationImplemation(Dictionary<string, (string[], IEnumerable<string[]>)> data,
+                                                            string typeName, string[] propertyNames,
+                                                            string expectedProperties,
+                                                            params string[] expectedValues)
+        {
+            // Arrange
+            var options =
+                new Options()
+                    .ForType(typeName, propertyNames[0], propertyNames[1..^0]);
+            var converter = new Converter(options);
+
+            // Act
+            var text = converter.Serialize(data);
+
+            // Assert
+            Assert.IsNotNull(text, "Failed to serialize dynamic data.");
+
+            Assert.IsTrue(text.Contains(expectedProperties), "Serialized text contains no properties line.");
+            for (var index = 0; index < expectedValues.Length; index++)
+                Assert.IsTrue(text.Contains(expectedValues[index]), "Serialized text contains no values line {0}.", index);
         }
 
         #region Model classes
