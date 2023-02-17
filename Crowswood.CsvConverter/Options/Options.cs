@@ -90,15 +90,8 @@ namespace Crowswood.CsvConverter
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
         public Options ForMember<TObject, TMember>(Expression<Func<TObject, TMember>> member, string name)
             where TObject : class, new() =>
-            AddOptionMember(new OptionMember<TObject, TMember>(member, name));
+            AddMember(new OptionMember<TObject, TMember>(member, name));
 
-        /// <summary>
-        /// Adds the specified <paramref name="optionMetadata"/>.
-        /// </summary>
-        /// <param name="optionMetadata">An <see cref="OptionMetadata"/> to add.</param>
-        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
-        public Options ForMetadata<TMetadata>(OptionMetadata<TMetadata> optionMetadata)
-            where TMetadata : class, new() => AddOptionMetadata(optionMetadata);
 
         /// <summary>
         /// Adds a new <see cref="OptionMetadata{T}"/> for the specified <paramref name="prefix"/>
@@ -110,7 +103,7 @@ namespace Crowswood.CsvConverter
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
         public Options ForMetadata<TMetadata>(string prefix, params string[] propertyNames)
             where TMetadata : class, new() =>
-            ForMetadata(new OptionMetadata<TMetadata>(prefix, propertyNames));
+            AddMetadata(new OptionMetadata<TMetadata>(prefix, propertyNames));
 
         /// <summary>
         /// Adds a new <see cref="OptionMetadataDictionary"/> for the specific <paramref name="prefix"/>
@@ -122,20 +115,11 @@ namespace Crowswood.CsvConverter
         /// <param name="propertyNames">A <see cref="string[]"/> that contains the property names.</param>
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
         public Options ForMetadata(string prefix, bool allowNulls,params string[] propertyNames)=>
-            AddOptionMetadata(new OptionMetadataDictionary(prefix, propertyNames) 
+            AddMetadata(new OptionMetadataDictionary(prefix, propertyNames) 
             {
                 AllowNulls = allowNulls
             });
 
-        /// <summary>
-        /// Adss the specified <paramref name="optionType"/>.
-        /// </summary>
-        /// <typeparam name="TObject">The type that the <see cref="OptionType"/> is for.</typeparam>
-        /// <param name="optionType">An <see cref="OptionType{T}"/> to add.</param>
-        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
-        public Options ForType<TObject>(OptionType<TObject> optionType)
-            where TObject : class, new() =>
-            AddType(optionType);
 
         /// <summary>
         /// Adds a new <see cref="OptionType{T}"/> for <typeparamref name="TObject"/> to the 
@@ -145,7 +129,7 @@ namespace Crowswood.CsvConverter
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
         public Options ForType<TObject>()
             where TObject : class, new() => 
-            ForType(new OptionType<TObject>());
+            AddType(new OptionType<TObject>());
 
         /// <summary>
         /// Adds a new <see cref="OptionType{T}"/> for <typeparamref name="TObject"/> with the 
@@ -156,7 +140,18 @@ namespace Crowswood.CsvConverter
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
         public Options ForType<TObject>(string name)
             where TObject : class, new() =>
-            ForType(new OptionType<TObject>(name));
+            AddType(new OptionType<TObject>(name));
+
+        /// <summary>
+        /// Adds a new <see cref="OptionDynamicType"/> with the specified <paramref name="name"/> 
+        /// and <paramref name="propertyNames"/> to the current <see cref="Options"/> instance.
+        /// </summary>
+        /// <param name="name">A <see cref="string"/> containing the name to use for the object in the CSV data.</param>
+        /// <param name="propertyNames">A <see cref="string[]"/> containing the names of the parameters.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ForType(string name, string propertyName, params string[] propertyNames) =>
+            AddType(new OptionDynamicType(name, propertyName, propertyNames));
+
 
         /// <summary>
         /// Sets the <seealso cref="PropertyPrefix"/> and <seealso cref="ValuesPrefix"/> according
@@ -178,7 +173,7 @@ namespace Crowswood.CsvConverter
 
         #region Support routines
 
-        private Options AddOptionMember<TObject, TMember>(OptionMember<TObject, TMember> optionMember)
+        private Options AddMember<TObject, TMember>(OptionMember<TObject, TMember> optionMember)
             where TObject : class, new()
         {
             if (!none)
@@ -186,15 +181,14 @@ namespace Crowswood.CsvConverter
             return this;
         }
 
-        private Options AddOptionMetadata(OptionMetadata optionMetadata)
+        private Options AddMetadata(OptionMetadata optionMetadata)
         {
             if (!this.none)
                 this.optionMetadata.Add(optionMetadata);
             return this;
         }
 
-        private Options AddType<TObject>(OptionType<TObject> optionType) 
-            where TObject : class, new()
+        private Options AddType(OptionType optionType) 
         {
             if (!none)
                 optionTypes.Add(optionType);

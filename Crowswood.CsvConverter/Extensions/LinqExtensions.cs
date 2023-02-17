@@ -32,5 +32,19 @@
             source
                 .Where(item => item is TTarget target && target != null)
                 .Cast<TTarget>();
+
+        /// <summary>
+        /// Returns all non-null values from <paramref name="dictionary"/> as an <see cref="IDictionary{TKey, TValue}"/>.
+        /// </summary>
+        /// <typeparam name="TKey">The <see cref="Type"/> of the key of the dictionary.</typeparam>
+        /// <typeparam name="TValue">The <see cref="Type"/> of the value of the dictionary.</typeparam>
+        /// <param name="dictionary">An <see cref="IDictionary{TKey, TValue}"/></param>
+        /// <returns>An <see cref="IDictionary{TKey, TValue}"/> with non-null values.</returns>
+        public static IDictionary<TKey, TValue> NotNull<TKey, TValue>(this IDictionary<TKey, TValue?> dictionary)
+            where TKey : notnull
+            where TValue : class =>
+            dictionary
+                .Where(kvp => kvp.Value != null)
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value!);
     }
 }

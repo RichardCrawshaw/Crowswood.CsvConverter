@@ -65,4 +65,41 @@ namespace Crowswood.CsvConverter
 
         #endregion
     }
+
+    /// <summary>
+    /// A non-generic class that derives from <see cref="OptionType"/>. It indicates that the 
+    /// <see cref="Type"/> is 'dynamic', that is there is no associated entity type.
+    /// </summary>
+    public sealed class OptionDynamicType : OptionType
+    {
+        #region Properties
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// <c>null</c> indicates dynamci type.
+        /// </remarks>
+        public override Type Type => typeof(Type);
+
+        /// <summary>
+        /// Gets a <see cref="string[]"/> containing the names of the properties.
+        /// </summary>
+        public string[] PropertyNames { get; }
+
+        #endregion
+
+        #region Constructors
+
+        public OptionDynamicType(string name, string propertyName, string[] propertyNames)
+            : base(name)
+        {
+            var list = new List<string>
+            {
+                propertyName,
+            };
+            list.AddRange(propertyNames);
+            this.PropertyNames = list.ToArray();
+        }
+
+        #endregion
+    }
 }

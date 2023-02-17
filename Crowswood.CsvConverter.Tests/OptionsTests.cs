@@ -123,11 +123,38 @@
                 "Unexpected OptionMetadata 0 PropertyNames.");
         }
 
+        [TestMethod]
+        public void DynamicTypeTest()
+        {
+            // Arrange
+            var options =
+                new Options()
+                    .ForType("Foo", "Id", "Name");
+
+            // Assert
+            Assert.AreEqual(1, options.OptionTypes.Length, "Unexpected number of option types.");
+
+            var ot = options.OptionTypes.First();
+
+            Assert.IsInstanceOfType(ot, typeof(OptionDynamicType), "Unexpected option type.");
+
+            var odt = ot as OptionDynamicType;
+
+            Assert.AreEqual("Foo", odt?.Name, "Unexpected option type name.");
+            Assert.AreEqual(2, odt?.PropertyNames.Length, "Unexpected number of parameters.");
+            Assert.AreEqual("Id", odt?.PropertyNames[0], "Unexpecte name for parameter 0.");
+            Assert.AreEqual("Name", odt?.PropertyNames[1], "Unexpecte name for parameter 1.");
+        }
+
+        #region Test model
+
         private class Foo
         {
             public int Id { get; set; }
         }
 
         private class Bar { }
+
+        #endregion
     }
 }

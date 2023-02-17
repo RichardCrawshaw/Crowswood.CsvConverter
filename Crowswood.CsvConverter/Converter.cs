@@ -1,6 +1,8 @@
-﻿using System.ComponentModel;
-using System.Reflection;
+﻿using System.Reflection;
 using Crowswood.CsvConverter.Extensions;
+using Crowswood.CsvConverter.Handlers;
+using Crowswood.CsvConverter.Helpers;
+using Crowswood.CsvConverter.Model;
 
 namespace Crowswood.CsvConverter
 {
@@ -23,11 +25,8 @@ namespace Crowswood.CsvConverter
     {
         #region Fields
 
-        private readonly Options options;
-
-        private readonly Dictionary<Type, TypeDescriptionProvider> providers = new();
-
-        private readonly Dictionary<string, int> indexes = new();
+        private readonly IndexHandler indexHandler = new();
+        private readonly MetadataHandler metadataHandler;
 
         #endregion
 
@@ -36,7 +35,17 @@ namespace Crowswood.CsvConverter
         /// <summary>
         /// Gets the metadata as a dictionary keyed by <see cref="Type"/>.
         /// </summary>
-        public Dictionary<Type, List<object>> Metadata = new();
+        public Dictionary<string, List<object>> Metadata => this.metadataHandler.Metadata;
+
+        /// <summary>
+        /// Get the <see cref="IndexHandler"/> of the current instance.
+        /// </summary>
+        internal IndexHandler IndexHandler { get; } = new();
+
+        /// <summary>
+        /// Gets the <see cref="Options"/> supplied to the current instance.
+        /// </summary>
+        internal Options Options { get; }
 
         #endregion
 
@@ -49,8 +58,10 @@ namespace Crowswood.CsvConverter
         /// <param name="options">An <see cref="Options"/> object.</param>
         public Converter(Options? options)
         {
-            this.options = options ?? Options.None;
+            this.Options = options ?? Options.None;
             ValidateOptions();
+
+            this.metadataHandler = new(this);
         }
 
         #endregion
@@ -70,48 +81,73 @@ namespace Crowswood.CsvConverter
             if (string.IsNullOrEmpty(text))
                 throw new InvalidOperationException("Text is empty.");
 
-            foreach (var kvp in providers)
-                TypeDescriptor.RemoveProvider(kvp.Value, kvp.Key);
-            this.providers.Clear();
-            this.Metadata.Clear();
-
-            var lines =
-                text.Split("\r\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries |
-                                                 StringSplitOptions.TrimEntries)
-                    .Where(line => !options.CommentPrefixes.Any(prefix => line.StartsWith(prefix)))
-                    .ToList();
+            var lines = SplitLines(text);
 
             var types =
-                options.OptionTypes.Any()
-                ? options.OptionTypes.Select(optionType => optionType.Type)
+                this.Options.OptionTypes.Any()
+                ? this.Options.OptionTypes.Select(optionType => optionType.Type)
                 : GetTypes<TBase>(lines);
+
+            if (types.Any(type => type == typeof(Type)))
+                throw new InvalidOperationException("Dynamic types included.");
+
+            this.metadataHandler.Clear();
 
             InitialiseIndexes(true, types.Select(type => type.Name).ToArray());
 
-            var data = new List<TBase>();
-            foreach(var type in types)
+            var dictionary = new Dictionary<string, (string[], IEnumerable<string[]>)>();
+            foreach(var type in types.Where(type => type.IsAssignableTo(typeof(TBase))))
             {
-                if (type.IsAssignableTo(typeof(TBase)))
-                    data.AddRange(ConvertTo<TBase>(type, lines));
+                dictionary[type.Name] = ConvertTo(type, lines);
+            }
+
+            var data = new List<TBase>();
+            foreach(var kvp in dictionary)
+            {
+                data.AddRange(ConvertTo<TBase>(kvp.Key, kvp.Value));
             }
 
             return data;
         }
 
         /// <summary>
-        /// Deserialize from the <paramref name="stream"/> returning an <see cref="IEnumerable{T}"/> 
-        /// of <typeparamref name="TBase"/> objects.
+        /// Deserialize the specified <paramref name="text"/> into a <see cref="Dictionary{TKey, TValue}"/> 
+        /// of <see cref="Tuple{T1, T2}"/> of <see cref="string[]"/> and <see cref="IEnumerable{T}"/> 
+        /// of <see cref="string[]"/>, keyed by <see cref="string"/>.
         /// </summary>
-        /// <typeparam name="TBase">The base type of objects to return.</typeparam>
-        /// <param name="stream">A <see cref="Stream"/> that contains the data to deserialize.</param>
-        /// <returns>An <see cref="IEnumerable{T}"/> of <typeparamref name="TBase"/>.</returns>
-        public IEnumerable<TBase> Deserialize<TBase>(Stream stream)
-            where TBase : class
+        /// <param name="text">A <see cref="string"/> that contains the data to deserialize.</param>
+        /// <returns>A  <see cref="Dictionary{TKey, TValue}"/> of <see cref="Tuple{T1, T2}"/> of <see cref="string[]"/> and <see cref="IEnumerable{T}"/> of <see cref="string[]"/>, keyed by <see cref="string"/>.</returns>
+        /// <exception cref="InvalidOperationException">If <paramref name="text"/> is empty.
+        /// or
+        /// If there are no types defined in the options, or if non-dynamic types are included.</exception>
+        public Dictionary<string, (string[], IEnumerable<string[]>)> Deserialize(string text)
         {
-            using var reader = new StreamReader(stream);
-            var text = reader.ReadToEnd();
-            var result = Deserialize<TBase>(text);
-            return result;
+            if (string.IsNullOrEmpty(text))
+                throw new InvalidOperationException("Text is empty.");
+
+            var lines = SplitLines(text);
+
+            if (!this.Options.OptionTypes.Any())
+                throw new InvalidOperationException("No types defined.");
+            if (this.Options.OptionTypes.Any(ot => ot.Type != typeof(Type)))
+                throw new InvalidOperationException("Non-dynamic types included.");
+
+            this.metadataHandler.Clear();
+
+            InitialiseIndexes(true, this.Options.OptionTypes.Select(optionType => optionType.Name).ToArray());
+
+            var dynamicTypes =
+                this.Options.OptionTypes
+                    .Select(optionType => optionType as OptionDynamicType)
+                    .NotNull();
+
+            var data = new Dictionary<string, (string[], IEnumerable<string[]>)>();
+            foreach (var dynamicType in dynamicTypes)
+            {
+                data[dynamicType.Name] = ConvertTo(dynamicType, lines);
+            }
+
+            return data;
         }
 
         /// <summary>
@@ -124,8 +160,8 @@ namespace Crowswood.CsvConverter
         {
             var lines = new List<string>();
 
-            var types = options.OptionTypes.Any()
-                ? options.OptionTypes.Select(optionType => optionType.Type)
+            var types = this.Options.OptionTypes.Any()
+                ? this.Options.OptionTypes.Select(optionType => optionType.Type)
                 : values.Select(value => value.GetType()).Distinct();
 
             foreach(var type in types)
@@ -138,83 +174,56 @@ namespace Crowswood.CsvConverter
             return text;
         }
 
+        /// <summary>
+        /// Serializes the specified <paramref name="data"/> to a <see cref="string"/>.
+        /// </summary>
+        /// <param name="data">A <see cref="Dictionary{TKey, TValue}"/> of <see cref="Tuple{T1, T2}"/> of <see cref="string[]"/> and <see cref="IEnumerable{T}"/> of <see cref="string[]"/> keyed by <see cref="string"/>.</param>
+        /// <returns>A <see cref="string"/>.</returns>
+        public string Serialize(Dictionary<string, (string[], IEnumerable<string[]>)> data)
+        {
+            var lines = new List<string>();
+
+            foreach(var kvp in data)
+            {
+                if (this.Metadata.ContainsKey(kvp.Key))
+                {
+                    lines.AddRange(
+                        this.Metadata[kvp.Key]
+                            .Select(item => new
+                            {
+                                Prefix =
+                                    this.Options.OptionMetadata
+                                        .Where(optionsMetadata => optionsMetadata.Type == item.GetType())
+                                        .Select(optionsMetadata => optionsMetadata.Prefix)
+                                        .FirstOrDefault(),
+                                Item = item,
+                            })
+                            .Where(n => n.Prefix is not null)
+                            .Select(n => new
+                            {
+                                n.Prefix,
+                                Values =
+                                    n.Item.GetType().GetProperties()
+                                        .Select(property => property.GetValue(n.Item)?.ToString())
+                                        .Select(value => value is null ? string.Empty : $"\"{value}\"")
+                                        .ToArray(),
+                            })
+                            .Select(n => FormatCsvData(n.Prefix!, kvp.Key, n.Values)));
+                }
+                lines.Add(FormatCsvData(this.Options.PropertyPrefix, kvp.Key, kvp.Value.Item1));
+                lines.AddRange(
+                    kvp.Value.Item2
+                        .Select(items => FormatCsvData(this.Options.ValuesPrefix, kvp.Key, items.Select(n => $"\"{n}\"").ToArray())));
+                lines.Add("\r\n");
+            }
+
+            var text = string.Join("\r\n", lines);
+            return text;
+        }
+
         #endregion
 
-        #region Support routines
-
-        /// <summary>
-        /// Retrieves the metadata from the specified <paramref name="lines"/> for the specified
-        /// <paramref name="type"/>.
-        /// </summary>
-        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</param>
-        /// <param name="type">The <see cref="Type"/> to apply the metadata to.</param>
-        /// <remarks>
-        /// If the <paramref name="type"/> derives from <see cref="Attribute"/> then it is added to
-        /// the custom attributes of the type. Otherwise it is added to the <seealso cref="Metadata"/>
-        /// <see cref="Dictionary{TKey, TValue}"/> that is keyed by <see cref="Type"/>.
-        /// </remarks>
-        private void ApplyMetadata(IEnumerable<string> lines, Type type)
-        {
-            var metadataLines = GetMetadata(lines, type);
-
-            InitialiseIndexes(false, 
-                metadataLines
-                    .Select(items => items[0])
-                    .Distinct()
-                    .ToArray());
-
-            // This returns a List rathern an IEnumerable as we must only iterate through the 
-            // items once; doing so more than once causes additional incrementation of any tracked
-            // Automatic Increment values.
-            // Identifying the attributes causes the first iteration: .ToArray(); assigning the
-            // Metadata property causes the second iteration: .ToList().
-            var metadata = GetMetadata(metadataLines);
-
-            var attributes =
-                metadata
-                    .Select(item => item as Attribute)
-                    .NotNull()
-                    .Where(attribute =>
-                        attribute.GetType().GetCustomAttributes<AttributeUsageAttribute>(true)
-                            .Any(a => (a.ValidOn & AttributeTargets.Class) == AttributeTargets.Class))
-                    .ToArray();
-            if (attributes.Any())
-            {
-                // If the type of any of the metadata derives from Attribute then add them to the
-                // custom attributes for that type and retain an instance of TypeDescriptorProvider
-                // so it can be removed if the converter is used to load different data.
-                this.providers[type] = TypeDescriptor.AddAttributes(type, attributes);
-            }
-
-            this.Metadata[type] =
-                metadata
-                    .Where(item => item is not Attribute)
-                    .ToList();
-        }
-
-        /// <summary>
-        /// Converts and returns the values of the properties of the specified <paramref name="item"/> 
-        /// that are in the <paramref name="properties"/> into an <see cref="IEnumerable{T}"/> of 
-        /// <see cref="string"/>.
-        /// </summary>
-        /// <typeparam name="TBase">The type of item to process.</typeparam>
-        /// <param name="item">A <typeparamref name="TBase"/> object.</param>
-        /// <param name="properties">A <see cref="PropertyInfo"/> array.</param>
-        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</returns>
-        private static IEnumerable<string> AsStrings<TBase>(TBase item, PropertyInfo[] properties)
-            where TBase : class
-        {
-            var results = new List<string>();
-
-            foreach (var property in properties)
-            {
-                var value = property.GetValue(item)?.ToString();
-                var text = GetText(property.PropertyType, value);
-                results.Add(text);
-            }
-
-            return results;
-        }
+        #region ConvertFrom serialization routines
 
         /// <summary>
         /// Converts the specified <paramref name="values"/> according to the <paramref name="optionType"/>
@@ -253,10 +262,13 @@ namespace Crowswood.CsvConverter
             var returnType = typeof(IEnumerable<>).MakeGenericType(typeof(string));
 
             // Filter the parameters to those just of the type we're currently working with.
-            var parameters =
-                GetParameters(values.Where(n => n?.GetType().Equals(type) ?? false))
-                    .ToList();
-            parameters.Add(type);
+            var parameters = new object[]
+                {
+                    values
+                        .Where(n => n?.GetType().Equals(type) ?? false)
+                        .ToList(),
+                    type,
+                };
 
             // Explicitly set the types, rather than relying on the type of each parameter.
             var types =
@@ -270,9 +282,9 @@ namespace Crowswood.CsvConverter
             // type is the generic type parameter.
             // returnType is the type of the return parameter.
             // types are the types of the parameters the method expects.
-            var method = GetMethod<TBase>(name, typeof(TBase), returnType, types);
+            var method = GetMethod(name, typeof(TBase), returnType, types);
             var result =
-                method.Invoke(this, parameters.ToArray()) ??
+                method.Invoke(this, parameters) ??
                 throw new InvalidOperationException(
                     $"Failed to convert from type {type.Name}.");
 
@@ -299,7 +311,7 @@ namespace Crowswood.CsvConverter
                     .Where(property => property.PropertyType == typeof(string) ||
                                        property.PropertyType.IsValueType &&
                                        property.PropertyType != typeof(DateTime))
-                    .Select(property => new 
+                    .Select(property => new
                     {
                         Property = property,
                         Depth = property.DeclaringType?.GetDepth() ?? 0,
@@ -310,58 +322,71 @@ namespace Crowswood.CsvConverter
             var parameters =
                 properties
                     .Select(property =>
-                        this.options.OptionMembers
+                        this.Options.OptionMembers
                             .Where(assignment => assignment.Property.Name == property.Name)
                             .Select(assignment => assignment.Name)
-                            .FirstOrDefault() ?? 
+                            .FirstOrDefault() ??
                         property.GetCustomAttribute<CsvConverterPropertyAttribute>()?.Name ??
                         property.Name)
                     .ToArray();
 
-            var typeName = 
-                type.GetCustomAttribute<CsvConverterClassAttribute>()?.Name ?? 
+            var typeName =
+                type.GetCustomAttribute<CsvConverterClassAttribute>()?.Name ??
                 type.Name;
 
-            results.Add($"{this.options.PropertyPrefix},{typeName},{string.Join(",", parameters)}");
+            results.Add(FormatCsvData(this.Options.PropertyPrefix, typeName, parameters));
             foreach (var value in values)
             {
-                var asStrings = AsStrings(value, properties);
-                results.Add($"{this.options.ValuesPrefix},{typeName},{string.Join(",", asStrings)}");
+                var asStrings = ConversionHelper.AsStrings(value, properties);
+                results.Add(FormatCsvData(this.Options.ValuesPrefix, typeName, asStrings.ToArray()));
             }
 
             return results;
         }
 
+        #endregion
+
+        #region ConvertTo deserialization routines
+
         /// <summary>
-        /// Converts the specified <paramref name="lines"/> to an <see cref="IEnumerable{T}"/> of
-        /// <paramref name="type"/>.
+        /// Converts the specified typeless <paramref name="data"/> with a named type of 
+        /// <paramref name="typeName"/> into an <see cref="IEnumerable{T}"/> of typed objects that 
+        /// derive from <typeparamref name="TBase"/>.
         /// </summary>
-        /// <typeparam name="TBase">The type of objects to return.</typeparam>
-        /// <param name="type">The <see cref="Type"/> of object to create; it must be assignable to <typeparamref name="TBase"/>.</param>
-        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> that contains the text to convert.</param>
+        /// <typeparam name="TBase">The base <see cref="Type"/>.</typeparam>
+        /// <param name="typeName">A <see cref="string"/> that contains the name of the type</param>
+        /// <param name="data">An <see cref="IEnumerable{T}"/> of <see cref="string[]"/> that contains the data to convert.</param>
         /// <returns>An <see cref="IEnumerable{T}"/> of <typeparamref name="TBase"/>.</returns>
-        /// <exception cref="ArgumentException">If <seealso cref="OptionType.Type"/> cannot be assigned to <typeparamref name="TBase"/>.</exception>
+        /// <exception cref="ArgumentException">
+        /// If <paramref name="typeName"/> does not match a type from the <see cref="Assembly"/> 
+        /// that contains <typeparamref name="TBase"/>.
+        /// </exception>
         /// <exception cref="InvalidOperationException">If the conversion failed.</exception>
-        /// <remarks>This routine calls its namesake by reflection.</remarks>
-        private IEnumerable<TBase> ConvertTo<TBase>(Type type, IEnumerable<string> lines)
+        /// <remarks>
+        /// This routine calls <seealso cref="ConvertTo{T}(string[], IEnumerable{string[]})"/> by 
+        /// reflection.
+        /// </remarks>
+        private IEnumerable<TBase> ConvertTo<TBase>(string typeName, (string[], IEnumerable<string[]>) data)
             where TBase : class
         {
-            if (!type.IsAssignableTo(typeof(TBase)))
+            var type =
+                Assembly.GetAssembly(typeof(TBase))?.GetTypes()
+                    .FirstOrDefault(type => type.Name == typeName) ??
                 throw new ArgumentException(
-                    $"Unable to assign an object of type {type.Name} to {typeof(TBase).Name}.");
-
-            var name = nameof(ConvertTo);
+                    $"Unable to locate {typeName} from the Assembly containing {typeof(TBase).Name}.",
+                    nameof(typeName));
 
             var returnType = typeof(IEnumerable<>).MakeGenericType(type);
-            var parameters = GetParameters(lines);
+            var methodName = nameof(ConvertTo);
+            var arguments = new object[]
+            {
+                data.Item1, // names
+                data.Item2, // values
+            };
 
-            // name is the name of the method to retrieve.
-            // type is the generic type parameter.
-            // returnType is the type of the return parameter.
-            // parameters are the values that will be passed as the method arguments.
-            var method = GetMethod<TBase>(name, type, returnType, parameters);
+            var method = GetMethod(methodName, type, returnType, arguments);
             var result =
-                method.Invoke(this, parameters) ??
+                method.Invoke(this, arguments) ??
                 throw new InvalidOperationException(
                     $"Failed to convert to type {type.Name}.");
 
@@ -369,443 +394,282 @@ namespace Crowswood.CsvConverter
         }
 
         /// <summary>
-        /// Converts the specified <paramref name="lines"/> into an <see cref="IEnumerable{T}"/> of
-        /// <typeparamref name="T"/>.
+        /// Converts the specified typeless data that is made up from <paramref name="names"/> and 
+        /// <paramref name="values"/> into an <see cref="IEnumerable{T}"/> of <typeparamref name="T"/>.
         /// </summary>
-        /// <typeparam name="T">The type of object to process.</typeparam>
-        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</param>
+        /// <typeparam name="T">The <typeparamref name="T"/> of object to convert the data into.</typeparam>
+        /// <param name="names">A <see cref="string[]"/> that contains names of the properties that the <paramref name="values"/> are to populate.</param>
+        /// <param name="values">An <see cref="IEnumerable{T}"/> of <see cref="string[]"/> that contains the data.</param>
         /// <returns>An <see cref="IEnumerable{T}"/> of <typeparamref name="T"/>.</returns>
-        /// <remarks>This routine is called by reflection.</remarks>
-        private IEnumerable<T> ConvertTo<T>(IEnumerable<string> lines)
+        /// <remarks>
+        /// This routine is called via reflection by <seealso cref="ConvertTo{TBase}(string, (string[], IEnumerable{string[]}))"/>.
+        /// </remarks>
+        private IEnumerable<T> ConvertTo<T>(string[] names, IEnumerable<string[]> values)
             where T : class, new()
         {
-            var propertyAttributes = GetPropertyAttributes<T>();
             var type = typeof(T);
-            var typeName = 
-                type.GetCustomAttribute<CsvConverterClassAttribute>()?.Name ?? 
+            var propertyAndNamePairs =
+                type.GetPropertyAndAttributePairs()
+                    .GetPropertyAndNamePairs();
+
+            this.metadataHandler.Update(type);
+
+            foreach (var value in values)
+                yield return Create<T>(propertyAndNamePairs, names, value);
+        }
+
+        /// <summary>
+        /// Converts using the specified <paramref name="optionDynamicType"/> the specified <paramref name="lines"/> 
+        /// into a typeless data object.
+        /// </summary>
+        /// <param name="optionDynamicType">A <see cref="OptionDynamicType"/> object.</param>
+        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> containing the data to convert.</param>
+        /// <returns>A <see cref="Tuple{T1, T2}"/> of <see cref="string[]"/> and <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
+        /// <remarks>Used when deserializing into typeless data, when no subsequent conversion will be done.</remarks>
+        private (string[], IEnumerable<string[]>) ConvertTo(OptionDynamicType optionDynamicType, IEnumerable<string> lines)
+        {
+            this.metadataHandler.Construct(optionDynamicType.Name, lines);
+
+            var result = ConvertTo(optionDynamicType.Name, optionDynamicType.PropertyNames, null, lines);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Converts for the specified <paramref name="type"/> the specified <paramref name="lines"/> 
+        /// into a typeless data object.
+        /// </summary>
+        /// <param name="type">A <see cref="Type"/> indicating the type associated with the typeless object.</param>
+        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> containing the data to convert.</param>
+        /// <returns>A <see cref="Tuple{T1, T2}"/> of <see cref="string[]"/> and <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
+        /// <remarks>Used when deserializing into typeless data before converting to typed data.</remarks>
+        private (string[], IEnumerable<string[]>) ConvertTo(Type type, IEnumerable<string> lines)
+        {
+            this.metadataHandler.Construct(type.Name, lines);
+
+            var typeName =
+                type.GetCustomAttribute<CsvConverterClassAttribute>()?.Name ??
                 type.Name;
 
-            ApplyMetadata(lines, type);
+            var propertyAndNamePairs =
+                type.GetPropertyAndAttributePairs()
+                    .GetPropertyAndNamePairs();
 
-            // When spliting the lines into elements on comma the values lines must be checked to
-            // see if they need to have elements rejoined where an item of double-quote delimited
-            // text is split because it contains a comma. This is not needed on the parameter lines
-            // as the parameters do not support double-quote delimited text.
+            var propertyNames =
+                propertyAndNamePairs
+                    .Select(pair => pair.Property.Name)
+                    .ToArray();
 
-            var names =
-                lines
-                    .Where(line => line.StartsWith(this.options.PropertyPrefix))
-                    .Select(line => line.Split(','))
-                    .Select(items => items.Select(item => item.Trim()).ToArray())
-                    .Where(items => items[0] == this.options.PropertyPrefix)
-                    .Where(items => items[1] == typeName)
-                    .Select(items => items[2..^0])
-                    .FirstOrDefault();
+            var result = ConvertTo(typeName, propertyNames, propertyAndNamePairs?.ToArray(), lines);
 
-            var values =
-                lines
-                    .Where(line => line.StartsWith(this.options.ValuesPrefix))
-                    .Select(line => line.Split(','))
-                    .Select(items => RejoinSplitQuotes(items))
-                    .Select(items => items.Select(item => item.Trim()).ToArray())
-                    .Where(items => items[0] == this.options.ValuesPrefix)
-                    .Where(items => items[1] == typeName)
-                    .Select(items => items[2..^0]);
+            return result;
+        }
+
+        /// <summary>
+        /// Converts for the specified <paramref name="typeName"/> 
+        /// </summary>
+        /// <param name="typeName">A <see cref="string"/> containing the type.</param>
+        /// <param name="propertyNames">A <see cref="string[]"/> containing the names for the typeless data object.</param>
+        /// <param name="propertyAndNamePairs">A <see cref="PropertyAndNamePair[]"/> that can be null.</param>
+        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> containing the data to convert.</param>
+        /// <returns>A <see cref="Tuple{T1, T2}"/> of <see cref="string[]"/> and <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
+        /// <exception cref="Exception">If <paramref name="lines"/> did not contain any names for <paramref name="typeName"/>.</exception>
+        private (string[], IEnumerable<string[]>) ConvertTo(string typeName, string[] propertyNames, PropertyAndNamePair[]? propertyAndNamePairs, IEnumerable<string> lines)
+        {
+            var names = GetNames(typeName, lines);
+            var values = GetValues(typeName, lines);
 
             if (names is null && values.Any())
                 throw new Exception($"Failed to identify property names for {typeName}.");
 
             if (names is null)
-                yield break;
+                return (propertyNames, new List<string[]>());
 
+            // Create a list of indexes to allow quick look up between the property position and
+            // the name position. The names and values share the same position, the properties
+            // positions can be different.
+            var indexes = GetIndexLookup(names.ToList(), propertyNames, propertyAndNamePairs);
+
+            (string[] Names, List<string[]> values) result = (propertyNames, new List<string[]>());
+
+            var valueConverter = new ValueConverter(this.indexHandler, typeName);
+
+            // Now iterate through the values read from the CSV data, extracting each individual 
+            // value in the order of the names from the CSV and placing it in the position
+            // indicated by the properties from the options.
+            // There may be names that don't exist in the properties: they will be ignored; and 
+            // properties that don't exist in the names: they will remain as empty string.
             foreach (var value in values)
-                yield return Create<T>(propertyAttributes, names, value);
-        }
-
-        /// <summary>
-        /// Convert the specified <paramref name="textValue"/> into an <see cref="object"/> according 
-        /// to the specified <paramref name="targetType"/>, the specified <paramref name="typeName"/> 
-        /// is used to track any automatic increment value.
-        /// </summary>
-        /// <param name="typeName">A <see cref="string"/> containing the name of the data-type.</param>
-        /// <param name="textValue">A <see cref="string"/> containing the value to convert.</param>
-        /// <returns>A boxed value of <paramref name="targetType"/>.</returns>
-        /// <exception cref="ArgumentException">
-        /// If the <paramref name="targetType"/> is not either a <see cref="string"/>, an enum or a value 
-        /// type, excluding <see cref="DateTime"/>.
-        /// </exception>
-        /// <remarks>
-        /// <seealso cref="GetText(Type, string?)"/> does the reverse.
-        /// </remarks>
-        /// <param name="targetType">The <see cref="Type"/> to convert the value into.</param>
-        private object? ConvertValue(string typeName, string textValue, Type targetType)
-        {
-            if (targetType == typeof(string))
-                // Remove any white space surrounding the value, then remove the double-quotes.
-                return textValue.Trim().Trim('"').Trim();
-            if (!targetType.IsValueType || targetType == typeof(DateTime))
-                throw new ArgumentException("Must be either a string, enum or numeric type.", 
-                    nameof(targetType));
-
-            if (targetType == typeof(bool))
-                return bool.Parse(textValue);
-            if (targetType.IsEnum)
             {
-                if (textValue.StartsWith(targetType.Name + '.'))
-                    return Enum.Parse(targetType, textValue.AsSpan(targetType.Name.Length + 1), true);
-                return Enum.Parse(targetType, textValue, true);
-            }
+                // Create an array of the length of the properties; initialise it to empty string.
+                var array = new string[propertyNames.Length];
+                for (var index = 0; index < array.Length; index++)
+                    array[index] = string.Empty;
 
-            object? result = null;
-            if (targetType.IsGenericType)
-            {
-                var genericArguments = targetType.GetGenericArguments();
-                if (genericArguments.Length == 1)
+                // index is the position of the name within the properties.
+                for (var index = 0; index < array.Length; index++)
                 {
-                    var nullableType = typeof(Nullable<>).MakeGenericType(genericArguments[0]);
-                    if (targetType == nullableType)
-                    {
-                        result = ConvertValueToNumeric(typeName, textValue, genericArguments[0]);
-                    }
+                    // Check the position of the value within the row of CSV data, it may not exist!
+                    if (indexes[index] == -1) continue;
+
+                    var propertyType = value[indexes[index]].Trim() == "#" ? typeof(int) : typeof(string);
+                    array[index] =
+                        valueConverter.ConvertValue(value[indexes[index]], propertyType)?.ToString() ??
+                        string.Empty;
                 }
+
+                result.values.Add(array);
             }
-            else
-            {
-                result = ConvertValueToNumeric(typeName, textValue, targetType);
-            }
+
             return result;
         }
 
-        /// <summary>
-        /// Converts the specified <paramref name="textValue"/> to the specified <paramref name="targetType"/>
-        /// while handling automatic increments for the specified <paramref name="typeName"/>.
-        /// </summary>
-        /// <param name="typeName">A <see cref="string"/> containing the name of the data-type.</param>
-        /// <param name="textValue">A <see cref="string"/> containing the value to convert.</param>
-        /// <param name="targetType">A <see cref="Type"/> that the <paramref name="textValue"/> is to be converted to.</param>
-        /// <returns>An <see cref="object?"/> containing the boxed value, or null if the conversion couldn't be completed.</returns>
-        private object? ConvertValueToNumeric(string typeName, string textValue, Type targetType)
-        {
-            if (textValue == "#")
-            {
-                if (this.indexes.ContainsKey(typeName))
-                    return this.indexes[typeName]++;
-            }
-            else if (double.TryParse(textValue, out var numericValue))
-                return Convert.ChangeType(numericValue, targetType);
+        #endregion
 
-            return null;
-        }
+        #region Support routines
 
         /// <summary>
-        /// Creates and returns a new <typeparamref name="T"/> setting the value of the 
-        /// properties according to the specified <paramref name="properties"/>, <paramref name="names"/>
+        /// Creates and returns a new <typeparamref name="T"/> with its properties set according 
+        /// to the specified <paramref name="propertyAndNamePairs"/>, <paramref name="names"/>
         /// and <paramref name="values"/>.
         /// </summary>
         /// <typeparam name="T">The type of object to create.</typeparam>
-        /// <param name="propertyAttributes">A <see cref="List{T}"/> of <see cref="PropertyInfo"/> and <see cref="CsvConverterPropertyAttribute"/> pairs.</param>
+        /// <param name="propertyAndNamePairs">A <see cref="List{T}"/> of <see cref="PropertyAndNamePair"/> objects.</param>
         /// <param name="names">A <see cref="string"/> array containing the names of the properties.</param>
         /// <param name="values">A <see cref="string"/> array containing the values to assign to the properties.</param>
         /// <returns>A <typeparamref name="T"/> instance.</returns>
+        /// <exception cref="ArgumentException">If the length of the <paramref name="names"/> and <paramref name="values"/> are different.</exception>
         /// <remarks>
         /// The length of the <paramref name="names"/> and <paramref name="values"/> arrays must
         /// be the same, and their order must match.
         /// </remarks>
-        private T Create<T>(List<(PropertyInfo Property, CsvConverterPropertyAttribute? Attribute)> propertyAttributes,
-                            string[] names,
-                            string[] values)
+        private T Create<T>(IEnumerable<PropertyAndNamePair> propertyAndNamePairs, string[] names, string[] values)
             where T : class, new()
         {
-            if (values.Length != names.Length)
-                throw new ArgumentException(
-                    $"The length of {nameof(names)} ({string.Join("|", names)}) and {nameof(values)} ({string.Join("|", values)}) do not match.");
+            var valueConverter = new ValueConverter(this.indexHandler, typeof(T).Name);
 
-            var result = new T();
-            for (var index = 0; index < values.Length; index++)
-            {
-                var property = GetProperty(this.options.OptionMembers, propertyAttributes, names[index]);
-
-                // Don't assign ConvertValue to a variable, instead pass its result directly to
-                // the SetValue method, we don't want to resolve it if the property is null.
-
-                property?.SetValue(result, ConvertValue(typeof(T).Name, values[index], property.PropertyType));
-            }
+            var result = 
+                new T()
+                    .SetProperties(valueConverter,
+                                   this.Options.OptionMembers,
+                                   propertyAndNamePairs,
+                                   names,
+                                   values);
             return result;
         }
 
         /// <summary>
-        /// Generate and return a set of parsed metadata lines from the specified <paramref name="lines"/> 
-        /// for the specified <paramref name="type"/>.
+        /// Format the specified <paramref name="prefix"/>, <paramref name="typeName"/> and 
+        /// <paramref name="values"/> according to the defined CSV format.
         /// </summary>
-        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</param>
-        /// <param name="type"A <see cref="Type"/> containing the type to filter by.</param>
-        /// <returns>A <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
-        private IEnumerable<string[]> GetMetadata(IEnumerable<string> lines, Type type) =>
-            lines
-                .Where(line => this.options.OptionMetadata.Any(md => line.StartsWith(md.Prefix)))
-                .Select(line => line.Split(','))
-                .Select(items => RejoinSplitQuotes(items))
-                .Where(items => this.options.OptionMetadata.Any(md => items[0] == md.Prefix))
-                .Where(items => items[1] == type.Name);
+        /// <param name="prefix">A <see cref="string"/> that contains the prefix to put in the first column.</param>
+        /// <param name="typeName">A <see cref="string"/> that contains the type name to put in the second column.</param>
+        /// <param name="values">A <see cref="string[]"/> that contains the values to put in the remaining columns.</param>
+        /// <returns>A <see cref="string"/> containing CSV formatted values.</returns>
+        private static string FormatCsvData(string prefix, string typeName, string[] values) => $"{prefix},{typeName},{string.Join(",", values)}";
 
         /// <summary>
-        /// Generate and return a set of metadata from the specified <paramref name="lines"/>.
+        /// Creates and returns an index look-up for the specified <paramref name="names"/> from 
+        /// the <seealso cref="Options.OptionMembers"/>, and if not null the specified <paramref name="propertyAndNamePairs"/> 
+        /// for the specified <paramref name="propertyNames"/>.
         /// </summary>
-        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> arrays.</param>
-        /// <returns>A <see cref="List{T}"/> of <see cref="object?"/>.</returns>
-        /// <remarks>
-        /// This must return a <see cref="List{T}"/> rathern than an <see cref="IEnumerable{T}"/>
-        /// to prevent multiple iterations over the items, which causes additional incrementation
-        /// of the tracked Automatic Iteration values.
-        /// </remarks>
-        private List<object> GetMetadata(IEnumerable<string[]> lines) =>
-            lines
-                .Select(items =>
-                    GetMetadata(
-                        this.options.OptionMetadata
-                            .FirstOrDefault(md => md.Prefix == items[0]),
-                        items[2..^0]))
-                .NotNull()
+        /// <param name="names">A <see cref="string[]"/> containing the names of the fields in the data.</param>
+        /// <param name="propertyNames">A <see cref="string[]"/> containing the names of the properties in the type.</param>
+        /// <param name="propertyAndNamePairs">A <see cref="PropertyAndNamePair[]"/> that can be null.</param>
+        /// <returns>A <see cref="List{T}"/> of <see cref="int"/>.</returns>
+        private List<int> GetIndexLookup(List<string> names, string[] propertyNames, PropertyAndNamePair[]? propertyAndNamePairs)=>
+            propertyNames
+                .Select(propertyName =>
+                    this.Options.OptionMembers
+                        .Where(optionMember => optionMember.Property.Name == propertyName)
+                        .Select(optionMember => optionMember.Name)
+                        .FirstOrDefault() ??
+                    (propertyAndNamePairs ?? Array.Empty<PropertyAndNamePair>())
+                        .Where(pair => pair.Name == propertyName)
+                        .Select(pair => pair.Name)
+                        .FirstOrDefault() ??
+                    (propertyAndNamePairs ?? Array.Empty<PropertyAndNamePair>())
+                        .Where(pair => pair.Property.Name == propertyName)
+                        .Select(pair => pair.Name)
+                        .FirstOrDefault() ??
+                    propertyName)
+                .Select(name => names.IndexOf(name))
                 .ToList();
 
         /// <summary>
-        /// Generate and return a single metadata item from the specified <paramref name="optionMetadata"/>
-        /// and <paramref name="propertyValues"/>.
-        /// </summary>
-        /// <param name="optionMetadata">An <see cref="OptionMetadata"/> instance.</param>
-        /// <param name="propertyValues">A <see cref="string"/>array containing the values to be assigned to the metadata.</param>
-        /// <returns>An <see cref="object"/> that has been initialised with the <paramref name="propertyValues"/>.</returns>
-        /// <remarks>
-        /// The order of the properties is controlled by the order of the property names supplied
-        /// to the <paramref name="optionMetadata"/> object.
-        /// </remarks>
-        private object? GetMetadata(OptionMetadata? optionMetadata, string[] propertyValues)
-        {
-            if (optionMetadata is null) return null;
-
-            var typeName = optionMetadata.Prefix;
-            if (optionMetadata is OptionMetadataDictionary omd)
-            {
-                if (omd.AllowNulls)
-                    return GetMetadataDictionaryNullValue(typeName, optionMetadata.PropertyNames, propertyValues);
-                else
-                    return GetMetadataDictionaryNonNullValue(typeName, optionMetadata.PropertyNames, propertyValues);
-            }
-            
-            return 
-                GetMetadata(typeName,
-                            optionMetadata.CreateInstance(),
-                            optionMetadata.GetProperties(),
-                            optionMetadata.PropertyNames,
-                            propertyValues);
-        }
-
-        /// <summary>
-        /// Gets the metadate to populate <paramref name="obj"/> of <typeparamref name="T"/> 
-        /// using the specified <paramref name="properties"/> from the specified <paramref name="names"/>
-        /// and <paramref name="values"/>; the specified <paramref name="typeName"/> is used to 
-        /// track any automatic increment value.
-        /// </summary>
-        /// <typeparam name="T">The type of the object.</typeparam>
-        /// <param name="typeName">A <see cref="string"/> containing the name of the data-type.</param>
-        /// <param name="obj">An object of <typeparamref name="T"/> that will be populated.</param>
-        /// <param name="properties">A <see cref="PropertyInfo"/> array of <typeparamref name="T"/>.</param>
-        /// <param name="names">A <see cref="string"/> array of the names of the properties.</param>
-        /// <returns><paramref name="obj"/>.</returns>
-        /// <param name="values">A <see cref="string"/> array of the values.</param>
-        private T GetMetadata<T>(string typeName, T obj, PropertyInfo[] properties, string[] names, string[] values)
-            where T : class, new()
-        {
-            for (var index = 0; index < names.Length && index < values.Length; index++)
-            {
-                properties[index].SetValue(obj,
-                    ConvertValue(typeName, values[index], properties[index].PropertyType));
-            }
-            return obj;
-        }
-
-        /// <summary>
-        /// Gets a <see cref="Dictionary{TKey, TValue}"/> of non-null <see cref="string"/> keyed 
-        /// by <see cref="string"/> from the specified <paramref name="names"/> and <paramref name="values"/>;
-        /// the specified <paramref name="typeName"/> is used to keep track of any automatic 
-        /// increment value.
-        /// </summary>
-        /// <param name="typeName">A <see cref="string"/> containing the name of the data-type.</param>
-        /// <param name="names">A <see cref="string"/> array containing the names that will form the keys.</param>
-        /// <returns>A <see cref="Dictionary{TKey, TValue}"/> of <see cref="string"/> keyed by <see cref="string"/>.</returns>
-        /// <param name="values">A <see cref="string"/> array containing the values.</param>
-        private Dictionary<string, string> GetMetadataDictionaryNonNullValue(string typeName, string[] names, string[] values) =>
-            Enumerable
-                .Range(0, Math.Min(names.Length, values.Length))
-                .ToDictionary(
-                    index => names[index],
-                    index => values[index] switch
-                    {
-                        "" or "\"\"" => string.Empty,
-                        _ => ConvertValue(typeName, values[index], typeof(string))?.ToString() ?? string.Empty,
-                    });
-
-        /// <summary>
-        /// Gets a <see cref="Dictionary{TKey, TValue}"/> of nullable <see cref="string"/> keyed 
-        /// by <see cref="string"/> from the specified <paramref name="names"/> and <paramref name="values"/>;
-        /// the specified <paramref name="typeName"/> is used to keep track of any automatic 
-        /// increment value.
-        /// </summary>
-        /// <param name="typeName">A <see cref="string"/> containing the name of the data-type.</param>
-        /// <param name="names">A <see cref="string"/> array containing the names that will form the keys.</param>
-        /// <returns>A <see cref="Dicti.onary{TKey, TValue}"/> of <see cref="string?"/> keyed by <see cref="string"/></returns>
-        /// <param name="values">A <see cref="string"/> array containing the values.</param>
-        private Dictionary<string, string?> GetMetadataDictionaryNullValue(string typeName, string[] names, string[] values) =>
-            Enumerable
-                .Range(0, Math.Min(names.Length, values.Length))
-                .ToDictionary(
-                    index => names[index],
-                    index => values[index] switch
-                    {
-                        "" => null,
-                        "\"\"" => string.Empty,
-                        _ => ConvertValue(typeName, values[index], typeof(string))?.ToString() ?? string.Empty,
-                    });
-
-        /// <summary>
         /// Retrieves an instance non-public generic method with a generic type parameter of
         /// <typeparamref name="TParam"/>, has a name of <paramref name="name"/> and accepts the 
-        /// specified <paramref name="arguments"/> to process objects of type <paramref name="type"/>.
+        /// specified <paramref name="arguments"/> to process objects of type <paramref name="genericType"/>.
         /// </summary>
         /// <typeparam name="TParam">The generic type parameter to apply to the method.</typeparam>
         /// <typeparam name="TReturn">The type of the return value of the method.</typeparam>
         /// <param name="name">A <see cref="string"/> that contains the name of the method.</param>
-        /// <param name="type">A <see cref="Type"/> that indicates the type of object that the method will handle.</param>
+        /// <param name="genericType">A <see cref="Type"/> that indicates the type of object that the method will handle.</param>
         /// <param name="arguments">An <see cref="object"/> array that contains the arguments to supply to the method.</param>
         /// <returns>A <see cref="MethodInfo"/>.</returns>
-        private MethodInfo GetMethod<TParam>(string name, Type type, Type returnType, object[] arguments) =>
-            GetMethod<TParam>(name, type, returnType, arguments.Select(argument => argument.GetType()).ToArray());
+        private MethodInfo GetMethod(string name, Type genericType, Type returnType, object[] arguments) =>
+            GetMethod(name, genericType, returnType, arguments.Select(argument => argument.GetType()).ToArray());
 
         /// <summary>
         /// Retrieves an instance non-public generic method with a generic type parameter of
         /// <typeparamref name="TParam"/>, has a name of <paramref name="name"/> and accepts the 
-        /// arguments of the specified <paramref name="types"/> to process objects of type 
-        /// <paramref name="type"/>.
+        /// arguments of the specified <paramref name="argumentTypes"/> to process objects of type 
+        /// <paramref name="genericType"/>.
         /// </summary>
         /// <typeparam name="TParam">The generic type parameter to apply to the method.</typeparam>
         /// <typeparam name="TReturn">The type of the return value of the method.</typeparam>
         /// <param name="name">A <see cref="string"/> that contains the name of the method.</param>
-        /// <param name="type">A <see cref="Type"/> that indicates the type of object that the method will handle.</param>
-        /// <param name="types">A <see cref="Type"/> array that contains the types of arguments to supply to the method.</param>
+        /// <param name="genericType">A <see cref="Type"/> that indicates the type of object that the method will handle.</param>
+        /// <param name="argumentTypes">A <see cref="Type"/> array that contains the types of arguments to supply to the method.</param>
         /// <returns>A <see cref="MethodInfo"/>.</returns>
         /// <exception cref="InvalidOperationException">If the a matcing method is not found.</exception>
-        private MethodInfo GetMethod<TParam>(string name, Type type, Type returnType, Type[] types)
-        {
-            // We need to check the method parameters AFTER constructing the generic method to be 
-            // able to check parameter types, otherwise any parameters based on the type-parameter
-            // won't have been constructed themselves. Because constructing a generic method is
-            // fairly heavy, we check the number of arguments match the number of types before
-            // doing the construction so that we can filter out any methods with the wrong number
-            // of parameters.
-            var method =
-                GetType().GetMethods(BindingFlags.Instance |
-                                     BindingFlags.NonPublic)
-                    .Where(method => method.Name == name)
-                    .Where(method => method.IsGenericMethod)
-                    .Where(method => method.GetParameters().Length == types.Length)
-                    .Select(method => method.MakeGenericMethod(new Type[] { type, }))
-                    .Where(method => method.CheckArguments(types, returnType))
-                    .SingleOrDefault();
-
-            return
-                method ??
-                throw new InvalidOperationException(
-                    $"Failed to bind {name}<{type.Name}>({string.Join(", ", types.Select(t => t.GetName()))}) : {returnType.GetName()}.");
-        }
+        private MethodInfo GetMethod(string name, Type genericType, Type returnType, Type[] argumentTypes) =>
+            this.GetType().GetGenericMethod(name,
+                                            BindingFlags.Instance |
+                                            BindingFlags.NonPublic,
+                                            genericType, 
+                                            argumentTypes, 
+                                            returnType) ??
+            throw new InvalidOperationException(
+                $"Failed to bind {GetMethodSignature(name, genericType, returnType, argumentTypes)}.");
 
         /// <summary>
-        /// Constructs and returns an <see cref="object"/> array containing the specified 
-        /// <paramref name="parameters"/>.
+        /// Gets a <see cref="string"/> that represents the method arguments for the specified 
+        /// <paramref name="argumentTypes"/>.
         /// </summary>
-        /// <param name="parameters">A params <see cref="object"/> array.</param>
-        /// <returns>An <see cref="object"/> array.</returns>
-        private static object[] GetParameters(params object[] parameters) => parameters;
-
-        /// <summary>
-        /// Attempts to identify and return a <see cref="PropertyInfo"/> associated with the 
-        /// specified <paramref name="name"/> using the specified <paramref name="propertyAttributes"/>.
-        /// </summary>
-        /// <param name="assignments"></param>
-        /// <param name="propertyAttributes">A <see cref="List{T}"/> of <see cref="PropertyInfo"/> and <see cref="CsvConverterPropertyAttribute"/> pairs.</param>
-        /// <returns>A <see cref="PropertyInfo"/> or null if none match.</returns>
-        /// <remarks>
-        /// Attempt to find the property in this order:
-        /// <list type="number">
-        /// <item>by option assignment; this overrides all others.</item>
-        /// <item>by attribute name.</item>
-        /// <item>by property name.</item>
-        /// </list>
-        /// otherwise ignore it.
-        /// In all instances the name must match exactly, including case.
-        /// </remarks>
-        /// <param name="name">A <see cref="string"/> containing the name.</param>
-        private static PropertyInfo? GetProperty(OptionMember[] assignments,
-                                                 List<(PropertyInfo Property, CsvConverterPropertyAttribute? Attribute)> propertyAttributes,
-                                                 string name) =>
-            assignments
-                .Where(assignment => assignment.Name == name)
-                .Select(assignment => assignment.Property)
-                .FirstOrDefault() ??
-            propertyAttributes
-                .Where(n => n.Attribute?.Name == name)
-                .Select(n => n.Property)
-                .FirstOrDefault() ??
-            propertyAttributes
-                .Where(n => n.Property.Name == name)
-                .Select(n => n.Property)
-                .FirstOrDefault();
-
-        /// <summary>
-        /// Constructs and returns a <see cref="List{T}"/> of pairs of <see cref="PropertyInfo"/> 
-        /// and the corresponding <see cref="CsvConverterPropertyAttribute"/> for the <typeparamref name="TBase"/>.
-        /// </summary>
-        /// <typeparam name="TBase">The <see cref="Type"/> to retrieve for.</typeparam>
-        /// <returns>A <see cref="List{T}"/> of <see cref="PropertyInfo"/> and <see cref="CsvConverterPropertyAttribute"/> pairs.</returns>
-        private static List<(PropertyInfo Property, CsvConverterPropertyAttribute? Attribute)> GetPropertyAttributes<TBase>()
-            where TBase : class =>
-                typeof(TBase).GetProperties()
-                    .Select(property => (
-                        Property: property,
-                        Attribute: property.GetCustomAttribute<CsvConverterPropertyAttribute>(true)))
-                    .ToList();
-
-        /// <summary>
-        /// Returns a <see cref="string"/> containing the textual representation of the specified
-        /// <paramref name="value"/> according to the specified <paramref name="type"/>.
-        /// </summary>
-        /// <param name="type">The <see cref="Type"/> of the value.</param>
-        /// <param name="value">A <see cref="string"/> containing the raw value.</param>
+        /// <param name="argumentTypes">A <see cref="Type[]"/> containing the types of the arguments.</param>
         /// <returns>A <see cref="string"/>.</returns>
-        /// <remarks>
-        /// <seealso cref="ConvertValue(string, string, Type)"/> does the reverse.
-        /// </remarks>
-        private static string GetText(Type type, string? value)
-        {
-            if (type == typeof(string))
-                return $"\"{value ?? string.Empty}\"";
+        private static string GetMethodArguments(Type[] argumentTypes) =>
+            string.Join(", ", argumentTypes.Select(t => t.GetName()));
 
-            if (type == typeof(bool))
-                return value ?? false.ToString();
+        /// <summary>
+        /// Gets a string that represents the method signature for the specified method <paramref name="name"/>, 
+        /// <paramref name="genericType"/>, <paramref name="returnType"/> and <paramref name="argumentTypes"/>.
+        /// </summary>
+        /// <param name="name">A <see cref="string"/> containing the name of the method.</param>
+        /// <param name="genericType">A <see cref="type"/> containing the generic type of the method.</param>
+        /// <param name="returnType">A <see cref="Type"/> containing the return type of the method.</param>
+        /// <param name="argumentTypes">A <see cref="Type[]"/> containing the types of the arguments.</param>
+        /// <returns>A <see cref="string"/>.</returns>
+        private static string GetMethodSignature(string name, Type genericType, Type returnType, Type[] argumentTypes) =>
+            $"{name}<{genericType.Name}>({GetMethodArguments(argumentTypes)} : {returnType.GetName()}.";
 
-            if (type.IsEnum)
-                // value is null or empty return empty
-                // value is not defined for enum return empty
-                // return name, if null return empty.
-                return
-                    string.IsNullOrEmpty(value) ? string.Empty :
-                    !Enum.IsDefined(type, value) ? string.Empty :
-                    $"{type.Name}.{value}";
-
-            if (type.IsValueType)
-                return value ?? 0.ToString();
-
-            return string.Empty;
-        }
+        /// <summary>
+        /// Gets the names for the specified <paramref name="typeName"/> from the specified 
+        /// <paramref name="lines"/>.
+        /// </summary>
+        /// <param name="typeName">A <see cref="string"/> containing the name of the type.</param>
+        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</param>
+        /// <returns>A <see cref="string"/> array that will be null if there are no corresponding names.</returns>
+        private string[]? GetNames(string typeName, IEnumerable<string> lines) =>
+            lines
+                .Where(line => line.StartsWith(this.Options.PropertyPrefix))
+                .Select(line => line.Split(','))
+                .Select(items => items.Select(item => item.Trim()).ToArray())
+                .Where(items => items[0] == this.Options.PropertyPrefix)
+                .Where(items => items[1] == typeName)
+                .Select(items => items[2..^0])
+                .FirstOrDefault();
 
         /// <summary>
         /// Gets the names of the data-types from the specified <paramref name="lines"/>.
@@ -814,7 +678,7 @@ namespace Crowswood.CsvConverter
         /// <returns>A <see cref="string"/> array.</returns>
         private string[] GetTypeNames(IEnumerable<string> lines) =>
             lines
-                .Where(line => line.StartsWith(this.options.PropertyPrefix))
+                .Where(line => line.StartsWith(this.Options.PropertyPrefix))
                 .Select(line => line.Split(',', StringSplitOptions.RemoveEmptyEntries |
                                                 StringSplitOptions.TrimEntries))
                 .Select(items => items[1])
@@ -845,89 +709,75 @@ namespace Crowswood.CsvConverter
         }
 
         /// <summary>
-        /// Initialise the <seealso cref="indexes"/>, clearing them if <paramref name="clear"/> is
-        /// true, and creating a record for each of the specified <paramref name="types"/> with a
-        /// value of 1.
+        /// Gets an <see cref="IEnumerable{T}"/> of values for the specified <paramref name="typeName"/>
+        /// from the specified <paramref name="lines"/>.
+        /// </summary>
+        /// <param name="typeName">A <see cref="string"/> containing the name of the type.</param>
+        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
+        private IEnumerable<string[]> GetValues(string typeName, IEnumerable<string> lines) =>
+            lines
+                .Where(line => line.StartsWith(this.Options.ValuesPrefix))
+                .Select(line => line.Split(','))
+                .Select(items => ConversionHelper.RejoinSplitQuotes(items))
+                .Select(items => items.Select(item => item.Trim()).ToArray())
+                .Where(items => items[0] == this.Options.ValuesPrefix)
+                .Where(items => items[1] == typeName)
+                .Select(items => items[2..^0]);
+
+        /// <summary>
+        /// Initialise the <seealso cref="indexHandler"/>, clearing it if <paramref name="clear"/> 
+        /// is true.
         /// </summary>
         /// <param name="clear">A <see cref="bool"/> true to clear existing data; false otherwise.</param>
-        /// <param name="types">A <see cref="Type"/> array containing the types that are to be tracked.</param>
+        /// <param name="types">A <see cref="string"/> array containing the names of the types that are to be tracked.</param>
         private void InitialiseIndexes(bool clear, params string[] typeNames)
         {
             if (clear)
-                this.indexes.Clear();
-            foreach (var typeName in typeNames)
-                if (!indexes.ContainsKey(typeName))
-                    this.indexes[typeName] = 1;
+                this.indexHandler.Clear();
+            this.indexHandler.Initialise(typeNames);
         }
 
         /// <summary>
-        /// Recombines adjacent elements where a quote delimited string has been split on a comma.
+        /// Splits the specified <paramref name="text"/> into lines on end of line characters, 
+        /// removing any empty entries, trimming them and ignoring any that are comments.
         /// </summary>
-        /// <param name="elements">A <see cref="string"/> array containing the elements to check.</param>
-        /// <returns>A <see cref="string"/> array.</returns>
-        private static string[] RejoinSplitQuotes(string[] elements)
-        {
-            // Use a list as it's easier to remove elements.
-            var list = new List<string>(elements);
-
-            // Start the index at one, check the previous element and if needed combine the
-            // previous and current elements. This makes the end of bounds check easier.
-            var index = 1;
-            while (index < list.Count)
-            {
-                // We need to trim the elements before testing for leading / trailing double-quotes
-                // as they still retain any leading or trailing spaces at this point. This is
-                // important as there may be spaces that must be retained within the quoted text.
-                // For example, "There is a comma, contained in here" would be split into two (the
-                // square brackets [] are used to delimit the text for easy reading):
-                //  ["There is a comma]
-                //  [ contained in here"]
-                // If the leading space were trimmed from the second part then they would be
-                // recombined thus: "There is a comma,contained in here"; note the missing space.
-                if (list[index - 1].Trim().StartsWith('"') &&
-                    !list[index - 1].Trim().EndsWith('"'))
-                {
-                    list[index - 1] = $"{list[index - 1]},{list[index]}";
-                    list.RemoveAt(index);
-                }
-                else
-                    // Only increment the index if the original element didn't fail the check.
-                    // Otherwise re-check it after it's been recombined with the following index.
-                    index++;
-            }
-
-            // If the number of elements hasn't changed then return the original array.
-            return elements.Length == list.Count ? elements : list.ToArray();
-        }
+        /// <param name="text">A <see cref="string"/> containing the text to split.</param>
+        /// <returns>A <see cref="List{T}"/> of <see cref="string"/>.</returns>
+        private List<string> SplitLines(string text) =>
+                text.Split("\r\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries |
+                                                 StringSplitOptions.TrimEntries)
+                    .Where(line => !this.Options.CommentPrefixes.Any(prefix => line.StartsWith(prefix)))
+                    .ToList();
 
         /// <summary>
-        /// Validate the <seealso cref="options"/>.
+        /// Validate the <seealso cref="Options"/>.
         /// </summary>
         /// <exception cref="ArgumentException">If the property and values prefixes are not different.
         /// or
         /// If any of the metadata prefixes are not different to both the property and values prefixes.</exception>
         private void ValidateOptions()
         {
-            if (this.options.PropertyPrefix == this.options.ValuesPrefix)
+            if (this.Options.PropertyPrefix == this.Options.ValuesPrefix)
                 throw new ArgumentException(
                     "The property prefix and the values prefix must be different.",
-                    nameof(options));
+                    nameof(this.Options));
 
-            if (this.options.OptionMetadata
-                    .Any(om => om.Prefix == this.options.PropertyPrefix ||
-                               om.Prefix == this.options.ValuesPrefix))
+            if (this.Options.OptionMetadata
+                    .Any(om => om.Prefix == this.Options.PropertyPrefix ||
+                               om.Prefix == this.Options.ValuesPrefix))
                 throw new ArgumentException(
                     "The metadata prefix must be different to that of the property prefix and values prefix.",
-                    nameof(options));
+                    nameof(this.Options));
 
-            if (this.options.OptionMetadata
+            if (this.Options.OptionMetadata
                     .Where(om => om is not OptionMetadataDictionary)
                     .Select(om => new { OptionsMetadata = om, Properties = om.Type.GetProperties(), })
                     .Select(n => new { n.OptionsMetadata, PropertyNames = n.Properties.Select(p => p.Name).ToList(), })
                     .Any(n => n.OptionsMetadata.PropertyNames.Any(pn => !n.PropertyNames.Contains(pn))))
                 throw new ArgumentException(
                     "The metadata may only contain property names defined by the targeted type.",
-                    nameof(options));
+                    nameof(this.Options));
         }
 
         #endregion
