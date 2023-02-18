@@ -95,7 +95,7 @@ namespace Crowswood.CsvConverter
 
             InitialiseIndexes(true, types.Select(type => type.Name).ToArray());
 
-            var dictionary = new Dictionary<string, (string[], IEnumerable<string[]>)>();
+            var dictionary = new Dictionary<string, TypelessData>();
             foreach(var type in types.Where(type => type.IsAssignableTo(typeof(TBase))))
             {
                 dictionary[type.Name] = ConvertTo(type, lines);
@@ -104,7 +104,7 @@ namespace Crowswood.CsvConverter
             var data = new List<TBase>();
             foreach(var kvp in dictionary)
             {
-                data.AddRange(ConvertTo<TBase>(kvp.Key, kvp.Value));
+                data.AddRange(ConvertTo<TBase>(kvp.Key, kvp.Value.Get()));
             }
 
             return data;
@@ -141,13 +141,18 @@ namespace Crowswood.CsvConverter
                     .Select(optionType => optionType as OptionDynamicType)
                     .NotNull();
 
-            var data = new Dictionary<string, (string[], IEnumerable<string[]>)>();
+            var data = new Dictionary<string, TypelessData>();
             foreach (var dynamicType in dynamicTypes)
             {
                 data[dynamicType.Name] = ConvertTo(dynamicType, lines);
             }
 
-            return data;
+            var results =
+                data.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value.Get());
+
+            return results;
         }
 
         /// <summary>
@@ -419,14 +424,14 @@ namespace Crowswood.CsvConverter
         }
 
         /// <summary>
-        /// Converts using the specified <paramref name="optionDynamicType"/> the specified <paramref name="lines"/> 
-        /// into a typeless data object.
+        /// Converts using the specified <paramref name="optionDynamicType"/> the specified 
+        /// <paramref name="lines"/> into a typeless data object.
         /// </summary>
         /// <param name="optionDynamicType">A <see cref="OptionDynamicType"/> object.</param>
         /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> containing the data to convert.</param>
-        /// <returns>A <see cref="Tuple{T1, T2}"/> of <see cref="string[]"/> and <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
+        /// <returns>A <see cref="TypelessData"/> object.</returns>
         /// <remarks>Used when deserializing into typeless data, when no subsequent conversion will be done.</remarks>
-        private (string[], IEnumerable<string[]>) ConvertTo(OptionDynamicType optionDynamicType, IEnumerable<string> lines)
+        private TypelessData ConvertTo(OptionDynamicType optionDynamicType, IEnumerable<string> lines)
         {
             this.metadataHandler.Construct(optionDynamicType.Name, lines);
 
@@ -441,9 +446,9 @@ namespace Crowswood.CsvConverter
         /// </summary>
         /// <param name="type">A <see cref="Type"/> indicating the type associated with the typeless object.</param>
         /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> containing the data to convert.</param>
-        /// <returns>A <see cref="Tuple{T1, T2}"/> of <see cref="string[]"/> and <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
+        /// <returns>A <see cref="TypelessData"/> object.</returns>
         /// <remarks>Used when deserializing into typeless data before converting to typed data.</remarks>
-        private (string[], IEnumerable<string[]>) ConvertTo(Type type, IEnumerable<string> lines)
+        private TypelessData ConvertTo(Type type, IEnumerable<string> lines)
         {
             this.metadataHandler.Construct(type.Name, lines);
 
@@ -466,15 +471,17 @@ namespace Crowswood.CsvConverter
         }
 
         /// <summary>
-        /// Converts for the specified <paramref name="typeName"/> 
+        /// Converts for the specified <paramref name="typeName"/> using the specified <paramref name="propertyNames"/> 
+        /// and <paramref name="propertyAndNamePairs"/> the specified <paramref name="lines"/> into 
+        /// a typeless data object.
         /// </summary>
         /// <param name="typeName">A <see cref="string"/> containing the type.</param>
         /// <param name="propertyNames">A <see cref="string[]"/> containing the names for the typeless data object.</param>
         /// <param name="propertyAndNamePairs">A <see cref="PropertyAndNamePair[]"/> that can be null.</param>
         /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> containing the data to convert.</param>
-        /// <returns>A <see cref="Tuple{T1, T2}"/> of <see cref="string[]"/> and <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
+        /// <returns>A <see cref="TypelessData"/> object.</returns>
         /// <exception cref="Exception">If <paramref name="lines"/> did not contain any names for <paramref name="typeName"/>.</exception>
-        private (string[], IEnumerable<string[]>) ConvertTo(string typeName, string[] propertyNames, PropertyAndNamePair[]? propertyAndNamePairs, IEnumerable<string> lines)
+        private TypelessData ConvertTo(string typeName, string[] propertyNames, PropertyAndNamePair[]? propertyAndNamePairs, IEnumerable<string> lines)
         {
             var names = GetNames(typeName, lines);
             var values = GetValues(typeName, lines);
@@ -483,14 +490,14 @@ namespace Crowswood.CsvConverter
                 throw new Exception($"Failed to identify property names for {typeName}.");
 
             if (names is null)
-                return (propertyNames, new List<string[]>());
+                return new TypelessData(propertyNames);
 
             // Create a list of indexes to allow quick look up between the property position and
             // the name position. The names and values share the same position, the properties
             // positions can be different.
             var indexes = GetIndexLookup(names.ToList(), propertyNames, propertyAndNamePairs);
 
-            (string[] Names, List<string[]> values) result = (propertyNames, new List<string[]>());
+            TypelessData result = new(propertyNames);
 
             var valueConverter = new ValueConverter(this.indexHandler, typeName);
 
@@ -518,7 +525,7 @@ namespace Crowswood.CsvConverter
                         string.Empty;
                 }
 
-                result.values.Add(array);
+                result.Add(array);
             }
 
             return result;
