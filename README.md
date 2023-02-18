@@ -7,10 +7,9 @@ For details of why and how, refer to the [Wiki](https://github.com/RichardCrawsh
 ## Dynamic Types or Typeless Data
 
 The idea is to provide a dataset that does not rely on pre-defined entity classes. 
-Instead the data is presented as an Enumeration of Dictionary objects, one per data type. 
-Each dictionary is keyed by string, being the name of the datatype as specified in both the `Options` and the CSV data. 
-The value of each item in each dictionary is a `Tuple` of `string[]` and `IEnumerable` of `string[]`. 
-The `string[]` contains the data names, and the `IEnumerable` of `string[]` contains the data values.
+Instead the data is presented as a Dictionary of data, one per data type, keyed by the name from the CSV. 
+The value of each item in is a `Tuple` containing the field names of the data as `string[]` and  the values as `IEnumerable` of `string[]`. 
+`Dictionary<string, (string[], IEnumerable<string[]>)>`
 
 This will be useful in situations where strings are used, such as with T4 templates for code generation.
 
