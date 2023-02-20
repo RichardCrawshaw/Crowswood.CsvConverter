@@ -47,6 +47,9 @@ namespace Crowswood.CsvConverter
         /// </summary>
         internal Options Options { get; }
 
+        private string ReferenceColumnName => "Name";
+        private string ReferenceColumnId => "Id";
+
         #endregion
 
         #region Constructors
@@ -95,19 +98,27 @@ namespace Crowswood.CsvConverter
 
             InitialiseIndexes(true, types.Select(type => type.Name).ToArray());
 
-            var dictionary = new Dictionary<string, TypelessData>();
-            foreach(var type in types.Where(type => type.IsAssignableTo(typeof(TBase))))
+            // Generate a dictionary of type-less data.
+            var typelessData =
+                types
+                    .Where(type => type.IsAssignableTo(typeof(TBase)))
+                    .ToDictionary(
+                        type => type.Name,
+                        type => ConvertTo(type, lines));
+
+            foreach(var data in typelessData.Values)
             {
-                dictionary[type.Name] = ConvertTo(type, lines);
+                ConvertTo(data!, typelessData!);
             }
 
-            var data = new List<TBase>();
-            foreach(var kvp in dictionary)
-            {
-                data.AddRange(ConvertTo<TBase>(kvp.Key, kvp.Value.Get()));
-            }
+            // Convert the type-less data to typed entities.
+            var results =
+                typelessData
+                    .Select(kvp => ConvertTo<TBase>(kvp.Key, kvp.Value.Get()))
+                    .SelectMany(n => n)
+                    .ToList();
 
-            return data;
+            return results;
         }
 
         /// <summary>
@@ -141,14 +152,17 @@ namespace Crowswood.CsvConverter
                     .Select(optionType => optionType as OptionDynamicType)
                     .NotNull();
 
-            var data = new Dictionary<string, TypelessData>();
-            foreach (var dynamicType in dynamicTypes)
-            {
-                data[dynamicType.Name] = ConvertTo(dynamicType, lines);
-            }
+            var dictionary =
+                dynamicTypes
+                    .ToDictionary(
+                        dynamicType => dynamicType.Name,
+                        dynamicType => ConvertTo(dynamicType, lines));
+
+            foreach (var data in dictionary.Values)
+                ConvertTo(data, dictionary);
 
             var results =
-                data.ToDictionary(
+                dictionary.ToDictionary(
                     kvp => kvp.Key,
                     kvp => kvp.Value.Get());
 
@@ -529,6 +543,43 @@ namespace Crowswood.CsvConverter
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Update the specified <paramref name="typelessData"/> that references any of the items 
+        /// from <paramref name="data"/> with the referenced value.
+        /// </summary>
+        /// <param name="typelessData">A <see cref="TypelessData"/> object that is to be updated.</param>
+        /// <param name="data">A <see cref="Dictionary{TKey, TValue}"/> of <see cref="TypelessData"/> keyed by <see cref="string"/> that contains the reference data.</param>
+        private void ConvertTo(TypelessData typelessData, Dictionary<string, TypelessData> data)
+        {
+            var datatypes =
+                data.Keys
+                    .Select(dataType => $"#{dataType}(")
+                    .ToArray();
+
+            foreach(var name in typelessData.Names.Get())
+            {
+                for(var index = 0; index < typelessData.Values.Count(); index++)
+                {
+                    var value = typelessData[name, index];
+                    if (value.StartsWith("#") &&
+                        datatypes.Any(typeName => value.StartsWith(typeName)))
+                    {
+                        var position = value.IndexOf("(");
+                        var dataType = value[1..position];
+                        var dataValue = value[(position + 1)..^1].Trim().Trim('"');
+                        var values = data[dataType];
+                        var nameIndex = values.Names[this.ReferenceColumnName];
+                        var idIndex = values.Names[this.ReferenceColumnId];
+                        var referenceRow =
+                            values.Values
+                                .SingleOrDefault(row => row[nameIndex] == dataValue);
+                        if (referenceRow is not null)
+                            typelessData[name, index] = referenceRow[idIndex];
+                    }
+                }
+            }
         }
 
         #endregion
