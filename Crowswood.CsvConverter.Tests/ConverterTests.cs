@@ -1,7 +1,5 @@
 using System.ComponentModel;
 using Crowswood.CsvConverter.Extensions;
-using System.Linq;
-using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
 
 namespace Crowswood.CsvConverter.Tests
 {
@@ -401,7 +399,8 @@ Values,Foo,1,""Fred"",TestEnum.Data";
 
             var attributes = TypeDescriptor.GetAttributes(typeof(Foo));
 
-            Assert.IsTrue(attributes.OfType<MetadataAttribute>().Any(), "MetadataAttribute not available via Type.");
+            Assert.IsTrue(attributes.OfType<MetadataAttribute>().Any(), 
+                "MetadataAttribute not available via Type.");
             Assert.IsTrue(
                 attributes.OfType<MetadataAttribute>().First() is
                 {
@@ -782,6 +781,198 @@ Values,FooBar,#,""Bert"",99,Beta";
                 });
         }
 
+        [TestMethod]
+        public void TypedReferenceDataDeserializationTest()
+        {
+            // Assign
+            var text = @"
+Properties,Foo,Id,Name
+Values,Foo,#,""Fred""
+Values,Foo,#,""Bert""
+
+Properties,OtherFoo,Id,FooId,Name
+Values,OtherFoo,#,#Foo(""Bert""),""Alpha""
+Values,OtherFoo,#,#Foo(""Fred""),""Beta""
+";
+            var options =
+                new Options()
+                    .ForType<Foo>()
+                    .ForType<OtherFoo>();
+
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize<Foo>(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize.");
+
+            var fooData =
+                data.Where(n => n.GetType() == typeof(Foo))
+                    .Select(n => n as Foo)
+                    .NotNull()
+                    .ToList();
+            var otherFooData=
+                data.Where(n => n.GetType() == typeof(OtherFoo))
+                    .Select(n => n as OtherFoo)
+                    .NotNull()
+                    .ToList();
+
+            Assert.AreEqual(2, fooData.Count, "Unexpected number of Foo entities.");
+            Assert.AreEqual(2, otherFooData.Count, "Unexpected number of OtherFoo entities.");
+
+            var fred = fooData.FirstOrDefault(n => n.Name == "Fred");
+            var bert = fooData.FirstOrDefault(n => n.Name == "Bert");
+            var alpha = otherFooData.FirstOrDefault(n => n.Name == "Alpha");
+            var beta = otherFooData.FirstOrDefault(n => n.Name == "Beta");
+            Assert.IsNotNull(fred ?? bert ?? alpha ?? beta, "Expected records do not exist.");
+
+            Assert.AreEqual(fred?.Id, beta?.FooId, "Failed to reference record: fred.");
+            Assert.AreEqual(bert?.Id, alpha?.FooId, "Failed to reference record: bert.");
+        }
+
+        [TestMethod]
+        public void TypedSelfReferencingDataDeserializationTest()
+        {
+            // Assign
+            var text = @"
+Properties,OtherFoo,Id,FooId,Name
+Values,OtherFoo,#,#OtherFoo(""Beta""),""Alpha""
+Values,OtherFoo,#,#OtherFoo(""Alpha""),""Beta""
+";
+            var options =
+                new Options()
+                    .ForType<OtherFoo>();
+
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize<Foo>(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize.");
+
+            var otherFooData =
+                data.Where(n => n.GetType() == typeof(OtherFoo))
+                    .Select(n => n as OtherFoo)
+                    .NotNull()
+                    .ToList();
+
+            Assert.AreEqual(2, otherFooData.Count, "Unexpected number of OtherFoo entities.");
+
+            var alpha = otherFooData.FirstOrDefault(n => n.Name == "Alpha");
+            var beta = otherFooData.FirstOrDefault(n => n.Name == "Beta");
+            Assert.IsNotNull(alpha ?? beta, "Expected records do not exist.");
+
+            Assert.AreEqual(alpha?.Id, beta?.FooId, "Failed to find reference record: alpha.");
+            Assert.AreEqual(beta?.Id, alpha?.FooId, "Failed to find reference record: beta.");
+        }
+
+        [TestMethod]
+        public void TypelessReferenceDatadeserializationTest()
+        {
+            // Assign
+            var text = @"
+Properties,FooBar,Id,Name,ReferenceDataId
+Values,FooBar,#,""Fred"",#ReferenceData(""Beta"")
+Values,FooBar,#,""Bert"",#ReferenceData(""Alpha"")
+
+Properties,ReferenceData,Id,Name
+Values,ReferenceData,#,""Alpha""
+Values,ReferenceData,#,""Beta""";
+            var options =
+                new Options()
+                    .ForType("FooBar", "Id", "Name", "ReferenceDataId")
+                    .ForType("ReferenceData", "Id", "Name");
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize to typeless data.");
+            Assert.AreEqual(2, data.Count, "Unexpected number of data types.");
+
+            var fooBarData = data["FooBar"];
+            Assert.AreEqual(2, fooBarData.Item2.Count(), "Unexpected number of items: FooBar.");
+
+            var referenceDataData = data["ReferenceData"];
+            Assert.AreEqual(2, referenceDataData.Item2.Count(), "Unexpected number of items: ReferenceData.");
+
+            var fooBarNameIndex = fooBarData.Item1.ToList().IndexOf("Name");
+            var fred = fooBarData.Item2.FirstOrDefault(item => item[fooBarNameIndex] == "Fred");
+            var bert = fooBarData.Item2.FirstOrDefault(item => item[fooBarNameIndex] == "Bert");
+
+            var referenceDataNameIndex = referenceDataData.Item1.ToList().IndexOf("Name");
+            var alpha = referenceDataData.Item2.FirstOrDefault(item => item[referenceDataNameIndex] == "Alpha");
+            var beta = referenceDataData.Item2.FirstOrDefault(item => item[referenceDataNameIndex] == "Beta");
+
+            Assert.IsNotNull(fred, "Failed to find record: Fred.");
+            Assert.IsNotNull(bert, "Failed to find record: Bert.");
+            Assert.IsNotNull(alpha, "Failed to find record: Alpha.");
+            Assert.IsNotNull(beta, "Failed to find record: Beta.");
+
+            var fooBarReferenceDataIdIndex = data["FooBar"].Item1.ToList().IndexOf("ReferenceDataId");
+            var referenceDataIdIndex = data["ReferenceData"].Item1.ToList().IndexOf("Id");
+
+            Assert.AreEqual(alpha[referenceDataIdIndex], bert[fooBarReferenceDataIdIndex],
+                "Unexpected reference value: Bert.");
+            Assert.AreEqual(beta[referenceDataIdIndex], fred[fooBarReferenceDataIdIndex],
+                "Unexpected reference value: Fred.");
+        }
+
+        [TestMethod]
+        public void TypelessSelfReferencingDataDeserialisationTest()
+        {
+            // Assign
+            var text = @"
+Properties,FooBar,Id,FooId,Name
+Values,FooBar,#,#FooBar(""Beta""),""Alpha""
+Values,FooBar,#,#FooBar(""Alpha""),""Beta""
+";
+            var options =
+            new Options()
+                .ForType("FooBar", "Id", "Name", "FooId");
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize to typeless data.");
+            Assert.AreEqual(1, data.Count, "Unexpected number of data types.");
+
+            var fooBarData = data["FooBar"];
+            Assert.AreEqual(2, fooBarData.Item2.Count(), "Unexpected number of items: FooBar.");
+
+            var fooBarNameIndex =
+                fooBarData.Item1
+                    .ToList()
+                    .IndexOf("Name");
+
+            var alpha =
+                fooBarData.Item2
+                    .FirstOrDefault(item => item[fooBarNameIndex] == "Alpha");
+            var beta =
+                fooBarData.Item2
+                    .FirstOrDefault(item => item[fooBarNameIndex] == "Beta");
+            Assert.IsNotNull(alpha ?? beta, "Expected records do not exist.");
+
+            var fooBarIdIndex =
+                fooBarData.Item1
+                    .ToList()
+                    .IndexOf("Id");
+            var fooBarFooIdIndex =
+                fooBarData.Item1
+                    .ToList()
+                    .IndexOf("FooId");
+
+            Assert.AreEqual(alpha?[fooBarIdIndex], beta?[fooBarFooIdIndex], 
+                "Failed to find reference record: alpha.");
+            Assert.AreEqual(beta?[fooBarIdIndex], alpha?[fooBarFooIdIndex], 
+                "Failed to find reference record: beta.");
+        }
+
         private static void DynamicDeserializationImplementation(string text,
                                                                  string typeName, string[] propertyNames,
                                                                  string[] expectedNames,
@@ -906,14 +1097,9 @@ Values,FooBar,#,""Bert"",99,Beta";
             public TestEnum TestEnumValue { get; set; }
         }
 
-        private class AttrBar : AttrFoo
+        private class OtherFoo : Foo
         {
-
-        }
-
-        private class AttrBaz : AttrFoo
-        {
-
+            public int FooId { get; set; }
         }
 
         #endregion
