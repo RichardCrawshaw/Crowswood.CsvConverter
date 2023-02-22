@@ -1,8 +1,11 @@
 ﻿using System.Reflection;
+using System.Runtime.CompilerServices;
 using Crowswood.CsvConverter.Extensions;
 using Crowswood.CsvConverter.Handlers;
 using Crowswood.CsvConverter.Helpers;
 using Crowswood.CsvConverter.Model;
+
+[assembly: InternalsVisibleTo("Crowswood.CsvConverter.Tests")]
 
 namespace Crowswood.CsvConverter
 {
@@ -46,9 +49,6 @@ namespace Crowswood.CsvConverter
         /// Gets the <see cref="Options"/> supplied to the current instance.
         /// </summary>
         internal Options Options { get; }
-
-        private string ReferenceColumnName => "Name";
-        private string ReferenceColumnId => "Id";
 
         #endregion
 
@@ -531,7 +531,11 @@ namespace Crowswood.CsvConverter
                 for (var index = 0; index < array.Length; index++)
                 {
                     // Check the position of the value within the row of CSV data, it may not exist!
-                    if (indexes[index] == -1) continue;
+                    if (indexes[index] == -1 ||
+                        indexes[index] >= value.Length)
+                    {
+                        continue;
+                    }
 
                     var propertyType = value[indexes[index]].Trim() == "#" ? typeof(int) : typeof(string);
                     array[index] =
@@ -570,8 +574,8 @@ namespace Crowswood.CsvConverter
                         var dataType = value[1..position];
                         var dataValue = value[(position + 1)..^1].Trim().Trim('"');
                         var values = data[dataType];
-                        var nameIndex = values.Names[this.ReferenceColumnName];
-                        var idIndex = values.Names[this.ReferenceColumnId];
+                        var nameIndex = values.Names[this.GetReferenceNameColumnName(dataType)];
+                        var idIndex = values.Names[this.GetReferenceIdColumnName(dataType)];
                         var referenceRow =
                             values.Values
                                 .SingleOrDefault(row => row[nameIndex] == dataValue);
@@ -728,6 +732,42 @@ namespace Crowswood.CsvConverter
                 .Where(items => items[1] == typeName)
                 .Select(items => items[2..^0])
                 .FirstOrDefault();
+
+        /// <summary>
+        /// Gets the name of the id column for the specified <paramref name="typeName"/>.
+        /// </summary>
+        /// <param name="typeName">A <see cref="string"/> that contains the name of the data type being referenced.</param>
+        /// <returns>A <see cref="string"/> containing the name of the id column.</returns>
+        private string GetReferenceIdColumnName(string typeName) =>
+            this.Options.OptionsReferences
+                .Select(n => n as OptionReferenceType)
+                .NotNull()
+                .Where(n => n.TypeName == typeName)
+                .Select(n => n.IdPropertyName)
+                .FirstOrDefault() ??
+            this.Options.OptionsReferences
+                .Where(n => n.GetType() == typeof(OptionReference))
+                .Select(n => n.IdPropertyName)
+                .FirstOrDefault() ??
+            "Id";
+
+        /// <summary>
+        /// Gets the name of the name column for the specified <paramref name="typeName"/>.
+        /// </summary>
+        /// <param name="typeName">A <see cref="string"/> that contains the name of the data type being referenced.</param>
+        /// <returns>A <see cref="string"/> containing the name of the name column.</returns>
+        private string GetReferenceNameColumnName(string typeName) =>
+            this.Options.OptionsReferences
+                .Select(n => n as OptionReferenceType)
+                .NotNull()
+                .Where(n => n.TypeName == typeName)
+                .Select(n => n.NamePropertyName)
+                .FirstOrDefault() ??
+            this.Options.OptionsReferences
+                .Where(n => n.GetType() == typeof(OptionReference))
+                .Select(n => n.NamePropertyName)
+                .FirstOrDefault() ??
+            "Name";
 
         /// <summary>
         /// Gets the names of the data-types from the specified <paramref name="lines"/>.
