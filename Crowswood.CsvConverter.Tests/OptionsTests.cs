@@ -146,6 +146,42 @@
             Assert.AreEqual("Name", odt?.PropertyNames[1], "Unexpecte name for parameter 1.");
         }
 
+        [TestMethod]
+        public void RefernecesTest()
+        {
+            // Arrange
+            var options =
+                new Options()
+                    .ForReferences("AnId", "TheName")
+                    .ForReferences("Foo", "Identity", "FullName")
+                    .ForReferences<Bar>("ID", "AnotherName");
+
+            // Assert
+            Assert.AreEqual(3, options.OptionsReferences.Length, "Unexpected number of option references.");
+
+            ReferenceTestBody<OptionReference>("global", options, 0, null, "AnId", "TheName");
+            ReferenceTestBody<OptionReferenceType>("Foo", options, 1, "Foo", "Identity", "FullName");
+            ReferenceTestBody<OptionReferenceType<Bar>>("Bar", options, 2, "Bar", "ID", "AnotherName");
+        }
+
+        private static void ReferenceTestBody<T>(string name, Options options, int index, string? typeName, string idProperty, string nameProperty)
+            where T : OptionReference
+        {
+            Assert.IsInstanceOfType(options.OptionsReferences[index], typeof(T),
+                "Unexpected option reference: {0}.", name);
+
+            var reference = options.OptionsReferences[index] as T;
+
+            if (reference is OptionReferenceType optionReferenceType && typeName is not null)
+                Assert.AreEqual(typeName, optionReferenceType.TypeName,
+                    "Unexpected type name: {0}.", name);
+
+            Assert.AreEqual(idProperty, reference?.IdPropertyName,
+                "Unexpected Id property name: {0}.", name);
+            Assert.AreEqual(nameProperty, reference?.NamePropertyName,
+                "Unexpected Name property name: {0}.", name);
+        }
+
         #region Test model
 
         private class Foo

@@ -364,6 +364,43 @@ Values,Foo,1,""Picture"",TestEnum.Data";
         }
 
         [TestMethod]
+        public void TypedInsufficientValuesDeserializationTest()
+        {
+            // Assign
+            var text = @"
+Properties,Foo,Id,Name,TestEnum
+Values,Foo,1,""Fred""
+";
+            var converter = new Converter(Options.None);
+
+            // Act
+            var data = converter.Deserialize<Foo>(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize data.");
+        }
+
+        [TestMethod]
+        public void TypelessInsufficientVauesDeserializationTest()
+        {
+            // Assign
+            var text = @"
+Properties,FooBar,Id,Name,OtherValue
+Values,FooBar,1,""Fred""
+";
+            var options =
+                new Options()
+                    .ForType("FooBar", "Id", "Name", "OtherValue");
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize data.");
+        }
+
+        [TestMethod]
         public void MetadataDeserializationTest()
         {
             // Arrange
@@ -869,7 +906,7 @@ Values,OtherFoo,#,#OtherFoo(""Alpha""),""Beta""
         }
 
         [TestMethod]
-        public void TypelessReferenceDatadeserializationTest()
+        public void TypelessReferenceDataDeserializationTest()
         {
             // Assign
             var text = @"
@@ -973,6 +1010,104 @@ Values,FooBar,#,#FooBar(""Alpha""),""Beta""
                 "Failed to find reference record: beta.");
         }
 
+        [TestMethod]
+        public void TypelessReferenceDataDeserializationOptionsTest()
+        {
+            // Assign
+            var text = @"
+Properties,FooBar,Id,Name,RefDataId,RefMeatId,RefVegId
+Values,FooBar,#,""Fred"",#ReferenceData(""Beta""),#ReferenceMeat(""Steak""),#ReferenceVeg(""Beans"")
+Values,FooBar,#,""Bert"",#ReferenceData(""Alpha""),#ReferenceMeat(""Chops""),#ReferenceVeg(""Peas"")
+
+Properties,ReferenceData,Identity,FullName
+Values,ReferenceData,#,""Alpha""
+Values,ReferenceData,#,""Beta""
+
+Properties,ReferenceMeat,Identity,OtherName
+Values,ReferenceMeat,#,""Steak""
+Values,ReferenceMeat,#,""Chops""
+
+Properties,ReferenceVeg,Id,Name
+Values,ReferenceVeg,#,""Peas""
+Values,ReferenceVeg,#,""Beans""";
+            var options =
+                new Options()
+                    .ForType("FooBar", "Id", "Name", "RefDataId", "RefMeatId", "RefVegId")
+                    .ForType("ReferenceData", "Identity", "FullName")
+                    .ForType("ReferenceMeat", "Identity", "OtherName")
+                    .ForType("ReferenceVeg", "Id", "Name")
+                    .ForReferences("Identity", "FullName")
+                    .ForReferences("ReferenceMeat", "Identity", "OtherName")
+                    .ForReferences("ReferenceVeg", "Id", "Name");
+            var converter = new Converter(options);
+
+            // Act
+            var data = converter.Deserialize(text);
+
+            // Assert
+            Assert.IsNotNull(data, "Failed to deserialize to typeless data.");
+            Assert.AreEqual(4, data.Count, "Unexpected number of data types.");
+
+            const string UNEXPECTED_NUMBER_ITEMS = "Unexpected number of items: {0}.";
+
+            var fooBarData = data["FooBar"];
+            Assert.AreEqual(2, fooBarData.Item2.Count(), UNEXPECTED_NUMBER_ITEMS, "FooBar");
+
+            var referenceDataData = data["ReferenceData"];
+            Assert.AreEqual(2, referenceDataData.Item2.Count(), UNEXPECTED_NUMBER_ITEMS, "ReferenceData");
+
+            var referenceMeatData = data["ReferenceMeat"];
+            Assert.AreEqual(2, referenceMeatData.Item2.Count(), UNEXPECTED_NUMBER_ITEMS, "ReferenceMeat");
+
+            var referenceVegData = data["ReferenceVeg"];
+            Assert.AreEqual(2, referenceVegData.Item2.Count(), UNEXPECTED_NUMBER_ITEMS, "ReferenceVeg");
+
+            var (fred, bert) = Get2Items(fooBarData, "Name", "Fred", "Bert");
+            var (alpha, beta) = Get2Items(referenceDataData, "FullName", "Alpha", "Beta");
+            var (steak, chops) = Get2Items(referenceMeatData, "OtherName", "Steak", "Chops");
+            var (peas, beans) = Get2Items(referenceVegData, "Name", "Peas", "Beans");
+
+            var fooBarRefDataIdIndex = getIndex(fooBarData, "RefDataId");
+            var fooBarRefMeatIdIndex = getIndex(fooBarData, "RefMeatId");
+            var fooBarRefVegIdIndex = getIndex(fooBarData, "RefVegId");
+            var referenceDataIdIndex = getIndex(referenceDataData, "Identity");
+            var referenceMeatIdIndex = getIndex(referenceMeatData, "Identity");
+            var referenceVegIdIndex = getIndex(referenceVegData, "Id");
+
+            const string UNEXPECTED_REFERENCE_VALUE = "Unexpected reference value for {0} in record {1}.";
+
+            Assert.AreEqual(beta[referenceDataIdIndex], fred[fooBarRefDataIdIndex],
+                UNEXPECTED_REFERENCE_VALUE, "ReferenceData", "Fred");
+            Assert.AreEqual(steak[referenceMeatIdIndex], fred[fooBarRefMeatIdIndex],
+                UNEXPECTED_REFERENCE_VALUE, "ReferenceMeat", "Fred");
+            Assert.AreEqual(beans[referenceVegIdIndex], fred[fooBarRefVegIdIndex],
+                UNEXPECTED_REFERENCE_VALUE, "ReferenceVeg", "Fred");
+
+            Assert.AreEqual(alpha[referenceDataIdIndex], bert[fooBarRefDataIdIndex],
+                UNEXPECTED_REFERENCE_VALUE, "ReferenceData", "Bert");
+            Assert.AreEqual(chops[referenceMeatIdIndex], bert[fooBarRefMeatIdIndex],
+                UNEXPECTED_REFERENCE_VALUE, "ReferenceMeat", "Bert");
+            Assert.AreEqual(peas[referenceVegIdIndex], bert[fooBarRefVegIdIndex],
+                UNEXPECTED_REFERENCE_VALUE, "ReferenceVeg", "Bert");
+
+            (string[], string[]) Get2Items((string[], IEnumerable<string[]>) source, string fieldName, string item1Name, string item2Name)
+            {
+                var index = source.Item1.ToList().IndexOf(fieldName);
+                var item1Value=source.Item2.FirstOrDefault(item => item[index] == item1Name);
+                var item2Value = source.Item2.FirstOrDefault(item => item[index] == item2Name);
+
+                Assert.IsNotNull(item1Value, "Failed to find record: {0}", item1Name);
+                Assert.IsNotNull(item2Value, "Failed to find record: {0}", item2Name);
+
+                return (item1Value, item2Value);
+            }
+
+            int getIndex((string[], IEnumerable<string[]>) source, string indexName) => 
+                source.Item1.ToList().IndexOf(indexName);
+        }
+
+        #region Support routines
+
         private static void DynamicDeserializationImplementation(string text,
                                                                  string typeName, string[] propertyNames,
                                                                  string[] expectedNames,
@@ -992,7 +1127,7 @@ Values,FooBar,#,#FooBar(""Alpha""),""Beta""
             Assert.AreEqual(1, data.Count, "Unexpected number of data types.");
 
             var actualNames = data[typeName].Item1;
-            Assert.AreEqual(expectedNames.Length, actualNames.Length, 
+            Assert.AreEqual(expectedNames.Length, actualNames.Length,
                 "Unexpected number of {0} names.", typeName);
 
             for (var index = 0; index < expectedNames.Length; index++)
@@ -1000,15 +1135,15 @@ Values,FooBar,#,#FooBar(""Alpha""),""Beta""
                     "Unexpected name of {0} names {1}.", typeName, index);
 
             var actualValues = data[typeName].Item2;
-            Assert.AreEqual(expectedValues.Length, actualValues.Count(), 
+            Assert.AreEqual(expectedValues.Length, actualValues.Count(),
                 "Unexpected number of {0} values.", typeName);
 
-            for(var index = 0; index < expectedValues.Length; index++)
+            for (var index = 0; index < expectedValues.Length; index++)
             {
                 var actualValuesN = actualValues.Skip(index).First();
                 Assert.AreEqual(expectedValues[index].Length, actualValuesN.Length,
                     "Unexpected number of {0} {1} values.", typeName, index);
-                for(var innerIndex = 0; innerIndex < expectedValues[index].Length; innerIndex++)
+                for (var innerIndex = 0; innerIndex < expectedValues[index].Length; innerIndex++)
                     Assert.AreEqual(actualValuesN[innerIndex], expectedValues[index][innerIndex],
                         "Unexpected value of {0} {1} values {2}.", typeName, index, innerIndex);
             }
@@ -1035,6 +1170,8 @@ Values,FooBar,#,#FooBar(""Alpha""),""Beta""
             for (var index = 0; index < expectedValues.Length; index++)
                 Assert.IsTrue(text.Contains(expectedValues[index]), "Serialized text contains no values line {0}.", index);
         }
+
+        #endregion
 
         #region Model classes
 

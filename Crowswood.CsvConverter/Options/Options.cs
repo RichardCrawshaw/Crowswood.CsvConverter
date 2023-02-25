@@ -12,7 +12,9 @@ namespace Crowswood.CsvConverter
 
         private readonly List<OptionMember> optionMembers = new();
         private readonly List<OptionMetadata> optionMetadata = new();
+        private readonly List<OptionReference> optionsReferences = new();
         private readonly List<OptionType> optionTypes = new();
+
         private readonly bool none;
 
         #endregion
@@ -37,19 +39,25 @@ namespace Crowswood.CsvConverter
         /// Gets the <see cref="OptionMember"/> instances assigned to the current <see cref="Options"/>
         /// instance.
         /// </summary>
-        public OptionMember[] OptionMembers => optionMembers.ToArray();
+        internal OptionMember[] OptionMembers => optionMembers.ToArray();
 
         /// <summary>
         /// Gets the <see cref="OptionMetadata"/> instances assigned to the <see cref="Options"/>
         /// instance.
         /// </summary>
-        public OptionMetadata[] OptionMetadata => optionMetadata.ToArray();
+        internal OptionMetadata[] OptionMetadata => optionMetadata.ToArray();
+
+        /// <summary>
+        /// Gets the <see cref="OptionReferenceType"/> instances assigned to the current <see cref="Options"/> 
+        /// instance.
+        /// </summary>
+        internal OptionReference[] OptionsReferences => this.optionsReferences.ToArray();
 
         /// <summary>
         /// Gets the <see cref="OptionType"/> instances assigned to the curent <see cref="Options"/>
         /// instance.
         /// </summary>
-        public OptionType[] OptionTypes => optionTypes.ToArray();
+        internal OptionType[] OptionTypes => optionTypes.ToArray();
 
         /// <summary>
         /// Gets the <see cref="string"/> that contains the property prefix.
@@ -122,6 +130,39 @@ namespace Crowswood.CsvConverter
 
 
         /// <summary>
+        /// Adds a new <see cref="OptionReference"/> to define the reference defaults with the 
+        /// specified <paramref name="idPropertyName"/> and <paramref name="namePropertyName"/>.
+        /// </summary>
+        /// <param name="idPropertyName">A <see cref="string"/> containing the name of the Id property.</param>
+        /// <param name="namePropertyName">A <see cref="string"/> containing the name of the Name property.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ForReferences(string idPropertyName, string namePropertyName) =>
+            AddReference(new OptionReference(idPropertyName, namePropertyName));
+
+        /// <summary>
+        /// Adds a new <see cref="OptionReferenceType"/> for the specified <paramref name="typeName"/> 
+        /// with the specified <paramref name="idPropertyName"/> and <paramref name="namePropertyName"/>.
+        /// </summary>
+        /// <param name="typeName">A <see cref="string"/> containing the name of the type.</param>
+        /// <param name="idPropertyName">A <see cref="string"/> containing the name of the Id property.</param>
+        /// <param name="namePropertyName">A <see cref="string"/> containing the name of the Name property.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ForReferences(string typeName, string idPropertyName, string namePropertyName) =>
+            AddReference(new OptionReferenceType(typeName, idPropertyName, namePropertyName));
+
+        /// <summary>
+        /// Adds a new <see cref="OptionReferenceType{T}"/> for the specified <typeparamref name="T"/> 
+        /// with the specified <paramref name="idPropertyName"/> and <paramref name="namePropertyName"/>.
+        /// </summary>
+        /// <typeparam name="T">The <see cref="Type"/> of object that is being referenced.</typeparam>
+        /// <param name="idPropertyName">A <see cref="string"/> containing the name of the Id property.</param>
+        /// <param name="namePropertyName">A <see cref="string"/> containing the name of the Name property.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ForReferences<T>(string idPropertyName, string namePropertyName)=>
+            AddReference(new OptionReferenceType<T>(idPropertyName, namePropertyName));
+
+
+        /// <summary>
         /// Adds a new <see cref="OptionType{T}"/> for <typeparamref name="TObject"/> to the 
         /// current <see cref="Options"/> instance.
         /// </summary>
@@ -174,24 +215,21 @@ namespace Crowswood.CsvConverter
         #region Support routines
 
         private Options AddMember<TObject, TMember>(OptionMember<TObject, TMember> optionMember)
-            where TObject : class, new()
-        {
-            if (!none)
-                this.optionMembers.Add(optionMember);
-            return this;
-        }
+            where TObject : class, new() => Add(optionMember, this.optionMembers);
 
-        private Options AddMetadata(OptionMetadata optionMetadata)
+        private Options AddMetadata(OptionMetadata optionMetadata) =>
+            Add(optionMetadata, this.optionMetadata);
+
+        private Options AddReference(OptionReference optionReference) =>
+            Add(optionReference, this.optionsReferences);
+
+        private Options AddType(OptionType optionType) =>
+            Add(optionType, this.optionTypes);
+
+        private Options Add<T>(T item, List<T> items) where T : class
         {
             if (!this.none)
-                this.optionMetadata.Add(optionMetadata);
-            return this;
-        }
-
-        private Options AddType(OptionType optionType) 
-        {
-            if (!none)
-                optionTypes.Add(optionType);
+                items.Add(item);
             return this;
         }
 
