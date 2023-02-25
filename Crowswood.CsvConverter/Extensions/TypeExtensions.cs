@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Crowswood.CsvConverter.Model;
+﻿using Crowswood.CsvConverter.Model;
 
 namespace Crowswood.CsvConverter.Extensions
 {

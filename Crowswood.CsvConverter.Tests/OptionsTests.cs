@@ -33,9 +33,9 @@
             var options = Options.None;
 
             // Act
-            options.ForMember<Foo, int>(foo => foo.Id, "ID");
-            options.ForMetadata<Foo>("Foo", "Bar", "Baz");
-            options.ForType<Foo>();
+            options.ForMember<OptionsFoo, int>(foo => foo.Id, "ID");
+            options.ForMetadata<OptionsFoo>("Foo", "Bar", "Baz");
+            options.ForType<OptionsFoo>();
 
             // Assert
             Assert.IsNotNull(options, "Failed to generate 'Options.None'.");
@@ -97,25 +97,25 @@
             // Arrange
             var options =
                 new Options()
-                    .ForType<Foo>()
-                    .ForMember<Foo, int>(foo => foo.Id, "ID")
-                    .ForMetadata<Bar>("Foo", "Bar", "Baz");
+                    .ForType<OptionsFoo>()
+                    .ForMember<OptionsFoo, int>(foo => foo.Id, "ID")
+                    .ForMetadata<OptionsBar>("Foo", "Bar", "Baz");
 
             // Assert
             Assert.AreEqual(1, options.OptionTypes.Length, "Unexpected number of Types.");
-            Assert.AreEqual(typeof(Foo), options.OptionTypes[0].Type, "Unexpected OptionTypes 0 Type.");
+            Assert.AreEqual(typeof(OptionsFoo), options.OptionTypes[0].Type, "Unexpected OptionTypes 0 Type.");
 
             Assert.AreEqual(1, options.OptionMembers.Length, "Unexpected number of Members.");
-            Assert.AreEqual(typeof(Foo), options.OptionMembers[0].Type, "Unexpected OptionMembers 0 Type.");
+            Assert.AreEqual(typeof(OptionsFoo), options.OptionMembers[0].Type, "Unexpected OptionMembers 0 Type.");
             Assert.AreEqual("ID", options.OptionMembers[0].Name, "Unexpected OptionMembers 0 Name.");
-            Assert.AreEqual(typeof(Foo).GetProperty("Id"), options.OptionMembers[0].Property, "Unexpected OptionMembers 0 Property.");
+            Assert.AreEqual(typeof(OptionsFoo).GetProperty("Id"), options.OptionMembers[0].Property, "Unexpected OptionMembers 0 Property.");
 
             Assert.AreEqual(1, options.OptionMetadata.Length, "Unexpected number of Metadata.");
-            Assert.AreEqual(typeof(Bar), options.OptionMetadata[0].Type, "Unexpected OptionMetadata 0 Type.");
+            Assert.AreEqual(typeof(OptionsBar), options.OptionMetadata[0].Type, "Unexpected OptionMetadata 0 Type.");
             Assert.AreEqual("Foo", options.OptionMetadata[0].Prefix, "Unexpected OptionMetadata 0 Prefix.");
-            Assert.AreEqual(typeof(OptionMetadata<Bar>), options.OptionMetadata[0].GetType(), "Unexpected OptionMetadata 0 generic type.");
+            Assert.AreEqual(typeof(OptionMetadata<OptionsBar>), options.OptionMetadata[0].GetType(), "Unexpected OptionMetadata 0 generic type.");
             Assert.IsTrue(
-                ((OptionMetadata<Bar>)options.OptionMetadata[0]).PropertyNames
+                ((OptionMetadata<OptionsBar>)options.OptionMetadata[0]).PropertyNames
                     .GroupBy(propertyName => propertyName)
                     .ToDictionary(n => n.Key, n => n.Count())
                     .All(kvp => (kvp.Key == "Bar" && kvp.Value == 1) ||
@@ -153,16 +153,18 @@
             var options =
                 new Options()
                     .ForReferences("AnId", "TheName")
-                    .ForReferences("Foo", "Identity", "FullName")
-                    .ForReferences<Bar>("ID", "AnotherName");
+                    .ForReferences("OptionsFoo", "Identity", "FullName")
+                    .ForReferences<OptionsBar>("ID", "AnotherName");
 
             // Assert
             Assert.AreEqual(3, options.OptionsReferences.Length, "Unexpected number of option references.");
 
             ReferenceTestBody<OptionReference>("global", options, 0, null, "AnId", "TheName");
-            ReferenceTestBody<OptionReferenceType>("Foo", options, 1, "Foo", "Identity", "FullName");
-            ReferenceTestBody<OptionReferenceType<Bar>>("Bar", options, 2, "Bar", "ID", "AnotherName");
+            ReferenceTestBody<OptionReferenceType>("OptionsFoo", options, 1, "OptionsFoo", "Identity", "FullName");
+            ReferenceTestBody<OptionReferenceType<OptionsBar>>("OptionsBar", options, 2, "OptionsBar", "ID", "AnotherName");
         }
+
+        #region Support routines
 
         private static void ReferenceTestBody<T>(string name, Options options, int index, string? typeName, string idProperty, string nameProperty)
             where T : OptionReference
@@ -182,14 +184,16 @@
                 "Unexpected Name property name: {0}.", name);
         }
 
+        #endregion
+
         #region Test model
 
-        private class Foo
+        private class OptionsFoo
         {
             public int Id { get; set; }
         }
 
-        private class Bar { }
+        private class OptionsBar { }
 
         #endregion
     }

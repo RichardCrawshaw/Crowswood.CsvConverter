@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using Crowswood.CsvConverter.Handlers;
 using Crowswood.CsvConverter.Model;
 
 namespace Crowswood.CsvConverter.Helpers
@@ -29,6 +28,58 @@ namespace Crowswood.CsvConverter.Helpers
 
             return results;
         }
+
+        /// <summary>
+        /// Format the specified <paramref name="prefix"/>, <paramref name="typeName"/> and 
+        /// <paramref name="values"/> according to the defined CSV format.
+        /// </summary>
+        /// <param name="prefix">A <see cref="string"/> that contains the prefix to put in the first column.</param>
+        /// <param name="typeName">A <see cref="string"/> that contains the type name to put in the second column.</param>
+        /// <param name="values">A <see cref="string[]"/> that contains the values to put in the remaining columns.</param>
+        /// <returns>A <see cref="string"/> containing CSV formatted values.</returns>
+        internal static string FormatCsvData(string prefix, string typeName, string[] values) => 
+            $"{prefix},{typeName},{string.Join(",", values)}";
+
+        /// <summary>
+        /// Filters the specified <paramref name="lines"/> according to the specified <paramref name="prefixes"/> 
+        /// and optionally rejoins split quotes if <paramref name="rejoinSplitQuotes"/> is true and 
+        /// trims items if <paramref name="trimItems"/> is true.
+        /// </summary>
+        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> containing the lines to be filtered.</param>
+        /// <param name="rejoinSplitQuotes">True to check for split quotes and rejoin any that are found.</param>
+        /// <param name="trimItems">True to trim white space from items.</param>
+        /// <param name="typeName"></param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
+        /// <param name="prefixes">A <see cref="string[]"/> that contains the prefixes to filter by.</param>
+        internal static IEnumerable<string[]> GetItems(IEnumerable<string> lines,
+                                                       bool rejoinSplitQuotes,
+                                                       bool trimItems,
+                                                       string? typeName, 
+                                                       params string[] prefixes) =>
+            lines
+                .Where(line => prefixes.Any(prefix => line.StartsWith(prefix)))
+                .Select(line => line.Split(','))
+                .Select(items => rejoinSplitQuotes ? RejoinSplitQuotes(items) : items)
+                .Select(items => trimItems ? items.Select(item => item.Trim()).ToArray() : items)
+                .Where(items => prefixes.Any(prefix => items[0] == prefix))
+                .Where(items => typeName is null || items[1] == typeName);
+
+        /// <summary>
+        /// Gets the names for the specified <paramref name="prefixes"/> and <paramref name="typeName"/> 
+        /// from the specified <paramref name="lines"/>.
+        /// </summary>
+        /// <param name="typeName">A <see cref="string"/> containing the name of the type.</param>
+        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</param>
+        /// <param name="prefixes">A <see cref="string[]"/> containing the prefixes.</param>
+        /// <returns>A <see cref="string"/> array that will be null if there are no corresponding names.</returns>
+        internal static string[]? GetNames(string typeName, IEnumerable<string> lines, params string[] prefixes) =>
+            GetItems(lines,
+                     rejoinSplitQuotes: false,
+                     trimItems: true,
+                     typeName,
+                     prefixes)
+                .Select(items => items[2..^0])
+                .FirstOrDefault();
 
         /// <summary>
         /// Attempts to identify and return a <see cref="PropertyInfo"/> associated with the 
@@ -64,6 +115,45 @@ namespace Crowswood.CsvConverter.Helpers
                 .Where(item => item.Property.Name == name)
                 .Select(item => item.Property)
                 .FirstOrDefault();
+
+        /// <summary>
+        /// Gets the names of the data-types from the specified <paramref name="lines"/> using the 
+        /// specified <paramref name="prefixes"/>.
+        /// </summary>
+        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</param>
+        /// <param name="prefixes">A <see cref="string[]"/> of prefixes that could indicate types.</param>
+        /// <param name="getPrefix">A <see cref="Func{T, TResult}"/> that accepts a <see cref="string"/> containing the type name and returns <see cref="string"/> containing the prefix.</param>
+        /// <returns>A <see cref="string"/> array.</returns>
+        internal static string[] GetTypeNames(IEnumerable<string> lines, string[] prefixes, Func<string, string> getPrefix) =>
+            lines
+                // Include any lines that start with any of the prefixes.
+                .Where(line => prefixes.Any(prefix => line.StartsWith(prefix)))
+                .Select(line => line.Split(',', StringSplitOptions.RemoveEmptyEntries |
+                                                StringSplitOptions.TrimEntries))
+                .Where(items => items.Length >= 2)
+                .Select(items => items[0..2])
+                .Distinct()
+                // Now only include items where the prefix matches that for the typename.
+                .Where(items => items[0] == getPrefix(items[1]))
+                .Select(items => items[1])
+                .Distinct()
+                .ToArray();
+
+        /// <summary>
+        /// Gets the values for the specified <paramref name="prefixes"/> and <paramref name="typeName"/> 
+        /// from the specified <paramref name="lines"/>.
+        /// </summary>
+        /// <param name="typeName">A <see cref="string"/> containing the name of the type.</param>
+        /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</param>
+        /// <param name="prefixes">A <see cref="string[]"/> containing the prefixes.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
+        internal static IEnumerable<string[]> GetValues(string typeName, IEnumerable<string> lines, params string[] prefixes) =>
+            GetItems(lines,
+                     rejoinSplitQuotes: true,
+                     trimItems: true,
+                     typeName,
+                     prefixes)
+                .Select(items => items[2..^0]);
 
         /// <summary>
         /// Recombines adjacent elements where a quote delimited string has been split on a comma.

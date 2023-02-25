@@ -9,27 +9,31 @@ namespace Crowswood.CsvConverter.Handlers
     {
         #region Fields
 
-        private readonly Converter converter;
-
         private readonly Dictionary<string, TypeDescriptionProvider> providers = new();
 
         #endregion
 
         #region Properties
 
-        private IndexHandler IndexHandler => converter.IndexHandler;
+        private IndexHandler IndexHandler { get; }
 
-        private Options Options => converter.Options;
+        private Options Options { get; }
 
         internal Dictionary<string, List<object>> Metadata { get; } = new();
+
+        private string[] MetadataPrefixes =>
+            this.Options.OptionMetadata
+                .Select(metadata => metadata.Prefix)
+                .ToArray();
 
         #endregion
 
         #region Constructors
 
-        public MetadataHandler(Converter converter)
+        public MetadataHandler(Options options, IndexHandler indexHandler)
         {
-            this.converter = converter;
+            this.Options = options;
+            this.IndexHandler = indexHandler;
         }
 
         #endregion
@@ -152,17 +156,12 @@ namespace Crowswood.CsvConverter.Handlers
         /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</param>
         /// <returns>A <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
         private List<object> GetMetadata(string typeName, IEnumerable<string> lines) =>
-            lines
-                .Where(line => this.Options.OptionMetadata.Any(md => line.StartsWith(md.Prefix)))
-                .Select(line => line.Split(','))
-                .Select(items => ConversionHelper.RejoinSplitQuotes(items))
-                .Where(items => this.Options.OptionMetadata.Any(md => items[0] == md.Prefix))
-                .Where(items => items[1] == typeName)
-                .Select(items =>
-                    GetMetadata(
-                        this.Options.OptionMetadata
-                            .FirstOrDefault(md => md.Prefix == items[0]),
-                        items[2..^0]))
+            ConversionHelper.GetItems(lines,
+                                      rejoinSplitQuotes: true,
+                                      trimItems: false,
+                                      typeName, 
+                                      this.MetadataPrefixes)
+                .Select(items => GetMetadata(GetOptionMetadata(items[0]), items[2..^0]))
                 .NotNull()
                 .ToList();
 
@@ -231,6 +230,16 @@ namespace Crowswood.CsvConverter.Handlers
                         _ => valueConverter.ConvertValue(values[index], typeof(string))?.ToString() ??
                             string.Empty,
                     });
+
+        /// <summary>
+        /// Gets the <see cref="OptionMetadata"/> that has the <seealso cref="OptionMetadata.Prefix"/> 
+        /// that matches the specified <paramref name="typeName"/>.
+        /// </summary>
+        /// <param name="typeName">A <see cref="string"/> that contains the name of the type of the metadata.</param>
+        /// <returns>An <see cref="OptionMetadata"/> object; or null if none match.</returns>
+        private OptionMetadata? GetOptionMetadata(string typeName) =>
+            this.Options.OptionMetadata
+                .FirstOrDefault(metadata => metadata.Prefix == typeName);
 
         #endregion
     }
