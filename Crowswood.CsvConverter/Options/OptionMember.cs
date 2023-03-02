@@ -38,7 +38,7 @@ namespace Crowswood.CsvConverter
         /// Creates a new <see cref="OptionMember"/> instance with the specified <paramref name="name"/>.
         /// </summary>
         /// <param name="name">A <see cref="string"/> that contains the name.</param>
-        protected OptionMember(string name) => Name = name;
+        protected OptionMember(string name) => this.Name = name;
 
         #endregion
     }
@@ -71,7 +71,7 @@ namespace Crowswood.CsvConverter
         /// <param name="property">A <see cref="PropertyInfo"/>,</param>
         /// <param name="name">A <see cref="string"/> that contains the name.</param>
         public OptionMember(PropertyInfo property, string name)
-            : base(name) => Property = property;
+            : base(name) => this.Property = property;
 
         /// <summary>
         /// Creates a new <see cref="OptionMember{TObject, TMember}"/> instance with the specified

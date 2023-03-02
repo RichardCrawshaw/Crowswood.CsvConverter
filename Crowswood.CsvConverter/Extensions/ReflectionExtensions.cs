@@ -59,6 +59,43 @@ namespace Crowswood.CsvConverter.Extensions
         }
 
         /// <summary>
+        /// Retrieves an instance non-public generic method with a generic type parameter of
+        /// <typeparamref name="TParam"/>, has a name of <paramref name="name"/> and accepts the 
+        /// specified <paramref name="arguments"/> to process objects of type <paramref name="genericType"/>.
+        /// </summary>
+        /// <typeparam name="TParam">The generic type parameter to apply to the method.</typeparam>
+        /// <typeparam name="TReturn">The type of the return value of the method.</typeparam>
+        /// <param name="name">A <see cref="string"/> that contains the name of the method.</param>
+        /// <param name="genericType">A <see cref="Type"/> that indicates the type of object that the method will handle.</param>
+        /// <param name="arguments">An <see cref="object"/> array that contains the arguments to supply to the method.</param>
+        /// <returns>A <see cref="MethodInfo"/>.</returns>
+        public static MethodInfo GetGenericMethod(this Type type, string name, Type genericType, Type returnType, object[] arguments) =>
+            type.GetGenericMethod(name, genericType, returnType, arguments.Select(argument => argument.GetType()).ToArray());
+
+        /// <summary>
+        /// Retrieves an instance non-public generic method with a generic type parameter of
+        /// <typeparamref name="TParam"/>, has a name of <paramref name="name"/> and accepts the 
+        /// arguments of the specified <paramref name="argumentTypes"/> to process objects of type 
+        /// <paramref name="genericType"/>.
+        /// </summary>
+        /// <typeparam name="TParam">The generic type parameter to apply to the method.</typeparam>
+        /// <typeparam name="TReturn">The type of the return value of the method.</typeparam>
+        /// <param name="name">A <see cref="string"/> that contains the name of the method.</param>
+        /// <param name="genericType">A <see cref="Type"/> that indicates the type of object that the method will handle.</param>
+        /// <param name="argumentTypes">A <see cref="Type"/> array that contains the types of arguments to supply to the method.</param>
+        /// <returns>A <see cref="MethodInfo"/>.</returns>
+        /// <exception cref="InvalidOperationException">If the a matcing method is not found.</exception>
+        public static MethodInfo GetGenericMethod(this Type type, string name, Type genericType, Type returnType, Type[] argumentTypes) =>
+            type.GetGenericMethod(name,
+                                  BindingFlags.Instance |
+                                  BindingFlags.NonPublic,
+                                  genericType,
+                                  argumentTypes,
+                                  returnType) ??
+            throw new InvalidOperationException(
+                $"Failed to bind {ReflectionHelper.GetMethodSignature(name, genericType, returnType, argumentTypes)}.");
+
+        /// <summary>
         /// Extension method to return a fully constructed generic method from the <paramref name="type"/>
         /// that has the specified <paramref name="name"/> and matches the specified <paramref name="bindingFlags"/>,
         /// for the specified <paramref name="genericType"/> that matches the specified 
