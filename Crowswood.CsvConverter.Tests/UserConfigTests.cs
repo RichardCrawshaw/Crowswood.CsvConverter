@@ -1,4 +1,5 @@
 ﻿using Crowswood.CsvConverter.Handlers;
+using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
 
 namespace Crowswood.CsvConverter.Tests
 {
@@ -41,6 +42,9 @@ TypedConfig,TypeName,ExampleName,ExampleValue2
 
             // Assert
             Assert.IsNotNull(handler, "Failed to create handler.");
+
+            foreach(var line in lines)
+                Logger.LogMessage("{0}", line);
 
             Assert.AreEqual(1, handler.GlobalConfig.Length, "Unexpected number of global config items.");
             Assert.AreEqual(1, handler.TypedConfig.Length, "Unexpected number of typed config items.");
