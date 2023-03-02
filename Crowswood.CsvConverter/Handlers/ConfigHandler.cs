@@ -253,10 +253,28 @@ namespace Crowswood.CsvConverter.Handlers
         {
             if (items.Any())
             {
+                Exception? ex = null;
                 if (!items.Any(n => n[0] == Configurations.TypedConfigPrefix))
-                    throw new ArgumentException("No Typed config.");
+                {
+                    ex = new ArgumentException("No Typed config.");
+                    ex.Data["TypedConfig"] =
+                        items
+                            .Select(n => n[0])
+                            .ToList();
+                }
+
                 if (!items.Any(n => n.Length >= 4))
-                    throw new ArgumentException("Insufficient number of items for valid Typed config.");
+                {
+                    ex = new ArgumentException("Insufficient number of items for valid Typed config.");
+                    ex.Data["Length"] =
+                        items
+                            .Where(n => n[0] == Configurations.TypedConfigPrefix)
+                            .Select(n => n.Length.ToString())
+                            .ToList();
+                }
+
+                if (ex != null)
+                    throw ex;
             }
 
             var typedConfig =

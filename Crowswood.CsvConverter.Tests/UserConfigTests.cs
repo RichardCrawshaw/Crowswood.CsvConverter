@@ -38,7 +38,27 @@ TypedConfig,TypeName,ExampleName,ExampleValue2
                     StringSplitOptions.TrimEntries);
 
             // Act
-            var handler = new ConfigHandler(Options.None, lines);
+            ConfigHandler? handler = null;
+
+            try
+            {
+                handler = new ConfigHandler(Options.None, lines);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Data.Count > 0)
+                {
+                    foreach(var key in ex.Data.Keys)
+                    {
+                        Logger.LogMessage("{0}", key);
+                        var value = ex.Data[key];
+                        if (value is List<string> list)
+                            foreach (var item in list)
+                                Logger.LogMessage("    {0}", item);
+                    }
+                }
+                Assert.Fail(ex.Message);
+            }
 
             // Assert
             Assert.IsNotNull(handler, "Failed to create handler.");
