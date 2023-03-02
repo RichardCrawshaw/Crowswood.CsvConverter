@@ -33,7 +33,7 @@ GlobalConfig,ExampleName,ExampleValue
 TypedConfig,TypeName,ExampleName,ExampleValue2
 ";
             var lines =
-                text.Split("\r\n", 
+                text.Split("\r\n".ToCharArray(), 
                     StringSplitOptions.RemoveEmptyEntries |
                     StringSplitOptions.TrimEntries);
 
@@ -41,6 +41,7 @@ TypedConfig,TypeName,ExampleName,ExampleValue2
             ConfigHandler? handler = null;
 
             Logger.LogMessage("Text = {0}", text);
+            Logger.LogMessage("Found {0} lines.", lines.Length);
             for (var i = 0; i < lines.Length; i++)
                 Logger.LogMessage("Line {0}: '{1}'", i, lines[i]);
 
