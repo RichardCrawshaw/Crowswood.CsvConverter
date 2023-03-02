@@ -70,7 +70,8 @@ namespace Crowswood.CsvConverter.Handlers
                                                       trimItems: true,
                                                       typeName: null,
                                                       Configurations.GlobalConfigPrefix,
-                                                      Configurations.TypedConfigPrefix))
+                                                      Configurations.TypedConfigPrefix,
+                                                      string.Empty))
         { }
 
         /// <summary>

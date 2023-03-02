@@ -40,6 +40,10 @@ TypedConfig,TypeName,ExampleName,ExampleValue2
             // Act
             ConfigHandler? handler = null;
 
+            Logger.LogMessage("Text = {0}", text);
+            for (var i = 0; i < lines.Length; i++)
+                Logger.LogMessage("Line {0}: '{1}'", i, lines[i]);
+
             try
             {
                 handler = new ConfigHandler(Options.None, lines);
@@ -62,9 +66,6 @@ TypedConfig,TypeName,ExampleName,ExampleValue2
 
             // Assert
             Assert.IsNotNull(handler, "Failed to create handler.");
-
-            foreach(var line in lines)
-                Logger.LogMessage("{0}", line);
 
             Assert.AreEqual(1, handler.GlobalConfig.Length, "Unexpected number of global config items.");
             Assert.AreEqual(1, handler.TypedConfig.Length, "Unexpected number of typed config items.");
