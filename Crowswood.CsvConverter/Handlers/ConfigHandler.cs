@@ -251,6 +251,14 @@ namespace Crowswood.CsvConverter.Handlers
         /// <exception cref="Exception">If there are duplicate definitions; each typename and name conbination must be unique.</exception>
         private static TypedConfig[] GetTypedConfig(IEnumerable<string[]> items)
         {
+            if (items.Any())
+            {
+                if (!items.Any(n => n[0] == Configurations.TypedConfigPrefix))
+                    throw new ArgumentException("No Typed config.");
+                if (!items.Any(n => n.Length >= 4))
+                    throw new ArgumentException("Insufficient number of items for valid Typed config.");
+            }
+
             var typedConfig =
                 items
                     .Where(items => items[0] == Configurations.TypedConfigPrefix)
