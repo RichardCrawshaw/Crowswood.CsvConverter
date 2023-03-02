@@ -45,7 +45,6 @@ Values,ExampleType,#,""Third name"",""A further value""
         /// This test proves that the global config works for data deserialzation.
         /// </summary>
         [TestMethod]
-        [Ignore]
         public void ConfigurationGlobalTest()
         {
             // Assign
@@ -157,7 +156,6 @@ VP,ExampleType,#,""Third"",""Gama""
         /// data-types that don't use the global defined prefixes are ignored.
         /// </summary>
         [TestMethod]
-        [Ignore]
         public void ConfigurationGlobalOverridesDefaultTest()
         {
             // Assign

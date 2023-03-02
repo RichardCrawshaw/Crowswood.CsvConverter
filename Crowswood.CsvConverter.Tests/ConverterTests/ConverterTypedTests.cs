@@ -233,7 +233,7 @@ Values,Baz,108,""One-zero-eight"",""oze"",""Value over a hundred""";
             Assert.IsTrue(text.Contains(FOO_PROPERTY_LINE),
                 "Serialized data does not contain Foo properties line.");
             Assert.AreEqual(1,
-                text.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)
+                text.Split("\r\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries)
                     .Count(n => n == FOO_PROPERTY_LINE),
                 "Unexpected number of Foo properties lines.");
             Assert.IsTrue(text.Contains("Values,Foo,1,\"Foo 1\",TestEnum.None"),
@@ -242,7 +242,7 @@ Values,Baz,108,""One-zero-eight"",""oze"",""Value over a hundred""";
             Assert.IsTrue(text.Contains(BAR_PROPERTY_LINE),
                 "Serialized data does not contain Bar properties line.");
             Assert.AreEqual(1,
-                text.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)
+                text.Split("\r\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries)
                     .Count(n => n == BAR_PROPERTY_LINE),
                 "Unexpected number of Bar properties lines.");
             Assert.IsTrue(text.Contains("Values,Bar,2,\"Bar 2\",TestEnum.None,True,888.08,9966.3"),
@@ -251,7 +251,7 @@ Values,Baz,108,""One-zero-eight"",""oze"",""Value over a hundred""";
             Assert.IsTrue(text.Contains(BAZ_PROPERTY_LINE),
                 "Serialized data does not contain Baz properties line.");
             Assert.AreEqual(1,
-                text.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)
+                text.Split("\r\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries)
                     .Count(n => n == BAZ_PROPERTY_LINE),
                 "Unexpected number of Baz properties lines.");
             Assert.IsTrue(text.Contains("Values,Baz,3,\"Baz 3\",TestEnum.None,\"iqzy\",\"This is some text\""),

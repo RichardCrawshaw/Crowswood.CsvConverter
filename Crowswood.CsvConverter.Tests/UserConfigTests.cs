@@ -1,5 +1,4 @@
 ﻿using Crowswood.CsvConverter.Handlers;
-using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
 
 namespace Crowswood.CsvConverter.Tests
 {
@@ -38,32 +37,7 @@ TypedConfig,TypeName,ExampleName,ExampleValue2
                     StringSplitOptions.TrimEntries);
 
             // Act
-            ConfigHandler? handler = null;
-
-            Logger.LogMessage("Text = {0}", text);
-            Logger.LogMessage("Found {0} lines.", lines.Length);
-            for (var i = 0; i < lines.Length; i++)
-                Logger.LogMessage("Line {0}: '{1}'", i, lines[i]);
-
-            try
-            {
-                handler = new ConfigHandler(Options.None, lines);
-            }
-            catch (Exception ex)
-            {
-                if (ex.Data.Count > 0)
-                {
-                    foreach(var key in ex.Data.Keys)
-                    {
-                        Logger.LogMessage("{0}", key);
-                        var value = ex.Data[key];
-                        if (value is List<string> list)
-                            foreach (var item in list)
-                                Logger.LogMessage("    {0}", item);
-                    }
-                }
-                Assert.Fail(ex.Message);
-            }
+            var handler = new ConfigHandler(Options.None, lines);
 
             // Assert
             Assert.IsNotNull(handler, "Failed to create handler.");

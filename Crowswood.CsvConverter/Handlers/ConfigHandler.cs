@@ -70,8 +70,7 @@ namespace Crowswood.CsvConverter.Handlers
                                                       trimItems: true,
                                                       typeName: null,
                                                       Configurations.GlobalConfigPrefix,
-                                                      Configurations.TypedConfigPrefix,
-                                                      string.Empty))
+                                                      Configurations.TypedConfigPrefix))
         { }
 
         /// <summary>
@@ -252,32 +251,6 @@ namespace Crowswood.CsvConverter.Handlers
         /// <exception cref="Exception">If there are duplicate definitions; each typename and name conbination must be unique.</exception>
         private static TypedConfig[] GetTypedConfig(IEnumerable<string[]> items)
         {
-            if (items.Any())
-            {
-                Exception? ex = null;
-                if (!items.Any(n => n[0] == Configurations.TypedConfigPrefix))
-                {
-                    ex = new ArgumentException("No Typed config.");
-                    ex.Data["TypedConfig"] =
-                        items
-                            .Select(n => n[0])
-                            .ToList();
-                }
-
-                if (!items.Any(n => n.Length >= 4))
-                {
-                    ex = new ArgumentException("Insufficient number of items for valid Typed config.");
-                    ex.Data["Length"] =
-                        items
-                            .Where(n => n[0] == Configurations.TypedConfigPrefix)
-                            .Select(n => n.Length.ToString())
-                            .ToList();
-                }
-
-                if (ex != null)
-                    throw ex;
-            }
-
             var typedConfig =
                 items
                     .Where(items => items[0] == Configurations.TypedConfigPrefix)
