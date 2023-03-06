@@ -60,7 +60,8 @@ Values,Foo,1,""Fred"",TestEnum.Data";
 
             var optionsWithSamePropertyAndValuesPrefixes =
                 new Options()
-                    .SetPrefixes("bad", "bad");
+                    .SetPrefixes(propertiesPrefix: "bad",
+                                 valuesPrefix: "bad");
             var optionsWithSameMetadataPrefixAsProperty =
                 new Options()
                     .ForMetadata<Metadata>(vanillaOptions.PropertyPrefix, "Name");
@@ -180,6 +181,9 @@ Values,Bar,#,""Tuesday""";
                 barEntities
                     .GroupBy(n => n.Id)
                     .Any(n => n.Count() > 1), "Found duplicate Ids for Bar entities.");
+
+            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Foo).Name), "No Foo metadata.");
+            Assert.IsTrue(converter.Metadata.ContainsKey(typeof(Bar).Name), "No Bar metadata.");
 
             var bazMetadata = new List<Baz>();
             foreach (var baz in converter.Metadata[typeof(Foo).Name].Cast<Baz>())

@@ -70,7 +70,7 @@ Values,FooBar,#,""Bert"",99,Beta",
         [TestMethod]
         public void TypelessInsufficientVauesDeserializationTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 Properties,FooBar,Id,Name,OtherValue
 Values,FooBar,1,""Fred""
@@ -124,7 +124,7 @@ Values,FooBar,#,""Bert"",99,Beta";
         [TestMethod]
         public void TypelessReferenceDataDeserializationTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 Properties,FooBar,Id,Name,ReferenceDataId
 Values,FooBar,#,""Fred"",#ReferenceData(""Beta"")
@@ -177,7 +177,7 @@ Values,ReferenceData,#,""Beta""";
         [TestMethod]
         public void TypelessSelfReferencingDataDeserialisationTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 Properties,FooBar,Id,FooId,Name
 Values,FooBar,#,#FooBar(""Beta""),""Alpha""
@@ -229,7 +229,7 @@ Values,FooBar,#,#FooBar(""Alpha""),""Beta""
         [TestMethod]
         public void TypelessReferenceDataDeserializationOptionsTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 Properties,FooBar,Id,Name,RefDataId,RefMeatId,RefVegId
 Values,FooBar,#,""Fred"",#ReferenceData(""Beta""),#ReferenceMeat(""Steak""),#ReferenceVeg(""Beans"")

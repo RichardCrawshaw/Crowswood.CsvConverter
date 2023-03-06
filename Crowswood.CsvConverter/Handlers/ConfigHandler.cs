@@ -28,6 +28,9 @@ namespace Crowswood.CsvConverter.Handlers
 
             public const string ReferenceIdColumnName = "ReferenceIdColumnName";
             public const string ReferenceNameColumnName = "ReferenceNameColumnName";
+
+            public const string ConversionTypePrefix = "ConversionTypePrefix";
+            public const string ConversionValuePrefix = "ConversionValuePrefix";
         }
 
         private readonly Options options;
@@ -54,18 +57,18 @@ namespace Crowswood.CsvConverter.Handlers
         #region Constructors
 
         /// <summary>
-        /// Create a default instance.
+        /// Create an instance with the specified <paramref name="options"/>.
         /// </summary>
-        public ConfigHandler() 
-            : this(Options.None, Array.Empty<GlobalConfig>(), Array.Empty<TypedConfig>())
+        internal ConfigHandler(Options options)
+            : this(options, new List<string>())
         { }
 
         /// <summary>
         /// Create an instance with configuration values from the specified <paramref name="lines"/>.
         /// </summary>
         /// <param name="lines">An <see cref="IEnumerable{T}"/> of <see cref="string"/> that contains the data from which the configuration information is to be extracted.</param>
-        public ConfigHandler(Options options, IEnumerable<string> lines)
-            : this(options, ConversionHelper.GetItems(lines,
+        internal ConfigHandler(Options options, IEnumerable<string> lines)
+            : this(options, ConverterHelper.GetItems(lines,
                                                       rejoinSplitQuotes: true,
                                                       trimItems: true,
                                                       typeName: null,
@@ -79,7 +82,7 @@ namespace Crowswood.CsvConverter.Handlers
         /// </summary>
         /// <param name="items">An <see cref="IEnumerable{T}"/> of <see cref="string[]"/> that contains the items from which the configuration information is to be extracted.</param>
         private ConfigHandler(Options options, IEnumerable<string[]> items)
-            : this(options, GetGlobalConfig(items), GetTypedConfig(items)) { }
+            : this(options, ConfigHelper.GetGlobalConfig(items), ConfigHelper.GetTypedConfig(items)) { }
 
         /// <summary>
         /// Private constructor to create an instance using the specified <paramref name="globalConfig"/> 
@@ -97,6 +100,22 @@ namespace Crowswood.CsvConverter.Handlers
         #endregion
 
         #region Methods
+
+        /// <summary>
+        /// Gets the conversion type prefix.
+        /// </summary>
+        /// <returns>A <see cref="string"/> containing the prefix.</returns>
+        internal string GetConversionTypePrefix() => 
+            GetGlobal(Configurations.ConversionTypePrefix)?.Value ??
+            this.options.ConversionTypePrefix; // GetConversionTypePrefix
+
+        /// <summary>
+        /// Gets the conversion value prefix.
+        /// </summary>
+        /// <returns>A <see cref="string"/> containing the prefix.</returns>
+        internal string GetConversionValuePrefix() =>
+            GetGlobal(Configurations.ConversionValuePrefix)?.Value ??
+            this.options.ConversionValuePrefix; // GetConversionValuePrefix
 
         /// <summary>
         /// Gets the <see cref="GlobalConfig"/> item that has the specified <paramref name="name"/>, 
@@ -221,48 +240,6 @@ namespace Crowswood.CsvConverter.Handlers
         /// <returns>An <see cref="OptionReferenceType"/>; null if there is nothing defined for the <paramref name="typeName"/>.</returns>
         private OptionReferenceType? GetOptionReference(string typeName) =>
             this.options.OptionsReferences.Get(typeName);
-
-        /// <summary>
-        /// Gets all the <see cref="GlobalConfig"/> items from the specified <paramref name="items"/>.
-        /// </summary>
-        /// <param name="items">An <see cref="IEnumerable{T}"/> of <see cref="string[]"/> that contains the items from which the global configuration information is to be extracted.</param>
-        /// <returns>An <see cref="GlobalConfig"/> array.</returns>
-        /// <exception cref="Exception">If there are duplicate definitions; each name must be unique.</exception>
-        private static GlobalConfig[] GetGlobalConfig(IEnumerable<string[]> items)
-        {
-            var globalConfig =
-                items
-                    .Where(items => items[0] == Configurations.GlobalConfigPrefix)
-                    .Where(items => items.Length >= 3)
-                    .Select(items => new { Name = items[1], Value = items[2], })
-                    .Select(n => new GlobalConfig(n.Name, n.Value))
-                    .ToArray();
-            // Each Name must be unique.
-            if (globalConfig.Any(n => globalConfig.Count(m => m.Name == n.Name) > 1))
-                throw new Exception("Duplicate Global Config definitions.");
-            return globalConfig;
-        }
-
-        /// <summary>
-        /// Gets all the <see cref="TypedConfig"/> items from the specified <paramref name="items"/>.
-        /// </summary>
-        /// <param name="items">An <see cref="IEnumerable{T}"/> of <see cref="string[]"/> that contains the items from which the typed configuration information is to be extracted.</param>
-        /// <returns>A <see cref="TypedConfig"/> array.</returns>
-        /// <exception cref="Exception">If there are duplicate definitions; each typename and name conbination must be unique.</exception>
-        private static TypedConfig[] GetTypedConfig(IEnumerable<string[]> items)
-        {
-            var typedConfig =
-                items
-                    .Where(items => items[0] == Configurations.TypedConfigPrefix)
-                    .Where(items => items.Length >= 4)
-                    .Select(items => new { TypeName = items[1], Name = items[2], Value = items[3], })
-                    .Select(n => new TypedConfig(n.TypeName, n.Name, n.Value))
-                    .ToArray();
-            // Each combinatin of TypeName and Name must be unique.
-            if (typedConfig.Any(n => typedConfig.Count(m => m.TypeName == n.TypeName && m.Name == n.Name) > 1))
-                throw new Exception("Duplicate Typed Config definitions.");
-            return typedConfig;
-        }
 
         #endregion
     }

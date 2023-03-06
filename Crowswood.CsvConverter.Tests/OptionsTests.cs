@@ -77,7 +77,8 @@
             var options = new Options();
 
             // Act
-            options.SetPrefixes("Foo", "Bar");
+            options.SetPrefixes(propertiesPrefix: "Foo",
+                                valuesPrefix: "Bar");
             options.CommentPrefixes =
                 new[]
                 {

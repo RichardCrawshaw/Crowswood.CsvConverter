@@ -69,6 +69,26 @@ namespace Crowswood.CsvConverter
         /// </summary>
         public string ValuesPrefix { get; private set; } = "Values";
 
+        /// <summary>
+        /// Gets the <see cref="string"/> that contains the conversion type prefix.
+        /// </summary>
+        public string ConversionTypePrefix { get; private set; } = "ConversionType";
+
+        /// <summary>
+        /// Gets the <see cref="string"/> that contains the conversion value prefix.
+        /// </summary>
+        public string ConversionValuePrefix { get; private set; } = "ConversionValue";
+
+        /// <summary>
+        /// Gets whether the conversion of types is enabled.
+        /// </summary>
+        public bool IsTypeConversionEnabled { get; private set; }
+
+        /// <summary>
+        /// Gets whether the conversion of values is enabled.
+        /// </summary>
+        public bool IsValueConversionEnabled { get; private set; }
+
         #endregion
 
         #region Constructors
@@ -87,6 +107,27 @@ namespace Crowswood.CsvConverter
         #endregion
 
         #region Methods
+
+        /// <summary>
+        /// Enable and disable the conversion of types and values.
+        /// </summary>
+        /// <param name="enable">True to enable conversions; false otherwise.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ConversionsEnable(bool enable) => ConversionsEnable(enable, enable);
+
+        /// <summary>
+        /// Enable and disable the conversion of types and values independently.
+        /// </summary>
+        /// <param name="enableTypeConversions">True to enable type conversions; false otherwise.</param>
+        /// <param name="enableValueConversions">True to enable value conversions; false otherwise.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        public Options ConversionsEnable(bool enableTypeConversions, bool enableValueConversions)
+        {
+            this.IsTypeConversionEnabled = enableTypeConversions;
+            this.IsValueConversionEnabled = enableValueConversions;
+
+            return this;
+        }
 
         /// <summary>
         /// Adds the specified <paramref name="optionMember"/>.
@@ -201,12 +242,24 @@ namespace Crowswood.CsvConverter
         /// <param name="propertiesPrefix">A <see cref="string"/> containing the new properties prefix value or null for no change.</param>
         /// <param name="valuesPrefix">A <see cref="string"/> containing the new values prefix value or null for no change.</param>
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
-        public Options SetPrefixes(string? propertiesPrefix, string? valuesPrefix)
+        public Options SetPrefixes(string? propertiesPrefix = null,
+                                   string? valuesPrefix = null,
+                                   string? conversionTypePrefix = null,
+                                   string? conversionValuePrefix = null)
         {
+
+            if (this.none)
+                return this;
+
             if (!string.IsNullOrWhiteSpace(propertiesPrefix))
                 this.PropertyPrefix = propertiesPrefix;
             if (!string.IsNullOrWhiteSpace(valuesPrefix))
                 this.ValuesPrefix = valuesPrefix;
+            if (!string.IsNullOrWhiteSpace(conversionTypePrefix))
+                this.ConversionTypePrefix = conversionTypePrefix;
+            if (!string.IsNullOrWhiteSpace(conversionValuePrefix))
+                this.ConversionValuePrefix = conversionValuePrefix;
+
             return this;
         }
 
