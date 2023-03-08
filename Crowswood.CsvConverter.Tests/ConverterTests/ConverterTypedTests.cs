@@ -318,7 +318,7 @@ Values,Foo,1,""Fred"",TestEnum.Entity";
         [TestMethod]
         public void TypedInsufficientValuesDeserializationTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 Properties,Foo,Id,Name,TestEnum
 Values,Foo,1,""Fred""
@@ -369,7 +369,7 @@ Values,Foo,#,""Harry""";
         [TestMethod]
         public void TypedReferenceDataDeserializationTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 Properties,Foo,Id,Name
 Values,Foo,#,""Fred""
@@ -419,7 +419,7 @@ Values,OtherFoo,#,#Foo(""Fred""),""Beta""
         [TestMethod]
         public void TypedSelfReferencingDataDeserializationTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 Properties,OtherFoo,Id,FooId,Name
 Values,OtherFoo,#,#OtherFoo(""Beta""),""Alpha""

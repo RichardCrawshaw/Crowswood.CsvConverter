@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static Crowswood.CsvConverter.Tests.ConverterTests.ConverterBaseTests;
-
-namespace Crowswood.CsvConverter.Tests.ConverterTests
+﻿namespace Crowswood.CsvConverter.Tests.ConverterTests
 {
     [TestClass]
     public class ConverterAttributeTests
@@ -29,7 +22,7 @@ Values,Foo,1,""Picture"",TestEnum.Data";
 
             Assert.AreEqual(1, data.First().Identity, "Incorrect value for Identity of object 1.");
             Assert.AreEqual("Picture", data.First().FullName, "Incorrect value for FullName of object 1.");
-            Assert.AreEqual(TestEnum.Data, data.First().TestEnumValue, "Incorrect value for TestEnumValue of object 1.");
+            Assert.AreEqual(ConverterBaseTests.TestEnum.Data, data.First().TestEnumValue, "Incorrect value for TestEnumValue of object 1.");
         }
 
         [TestMethod]
@@ -39,7 +32,7 @@ Values,Foo,1,""Picture"",TestEnum.Data";
             var data =
                 new List<AttrFoo>
                 {
-                    new AttrFoo { Identity = 1, FullName = "Picture", TestEnumValue = TestEnum.Data, },
+                    new AttrFoo { Identity = 1, FullName = "Picture", TestEnumValue = ConverterBaseTests.TestEnum.Data, },
                 };
 
             var converter = new Converter(Options.None);
@@ -69,7 +62,7 @@ Values,Foo,1,""Picture"",TestEnum.Data";
             public string? FullName { get; set; }
 
             [CsvConverterProperty("TestEnum")]
-            public TestEnum TestEnumValue { get; set; }
+            public ConverterBaseTests.TestEnum TestEnumValue { get; set; }
         }
 
         #endregion

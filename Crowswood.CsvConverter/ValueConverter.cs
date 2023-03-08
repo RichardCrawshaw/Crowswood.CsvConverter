@@ -9,6 +9,7 @@ namespace Crowswood.CsvConverter
     {
         #region Fields
 
+        private readonly ConversionHandler conversionHandler;
         private readonly IndexHandler indexHandler;
         private readonly string typeName;
 
@@ -16,8 +17,9 @@ namespace Crowswood.CsvConverter
 
         #region Constructors
 
-        internal ValueConverter(IndexHandler indexHandler, string typeName)
+        internal ValueConverter(ConversionHandler conversionHandler, IndexHandler indexHandler, string typeName)
         {
+            this.conversionHandler = conversionHandler;
             this.indexHandler = indexHandler;
             this.typeName = typeName;
         }
@@ -38,7 +40,8 @@ namespace Crowswood.CsvConverter
         {
             if (targetType == typeof(string))
                 // Remove any white space surrounding the value, then remove the double-quotes.
-                return textValue.Trim().Trim('"').Trim();
+                // Finally do any value conversion.
+                return this.conversionHandler.ConvertValue(textValue.Trim().Trim('"').Trim());
             if (!targetType.IsValueType || targetType == typeof(DateTime))
                 throw new ArgumentException("Must be either a string, enum or numeric type.",
                     nameof(targetType));

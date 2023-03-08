@@ -185,7 +185,7 @@ namespace Crowswood.CsvConverter.Extensions
             {
                 // Get the PropertyInfo to use to set the value for the name, based on the
                 // OptionMembers and PropertyAnNamePairs.
-                var property = ConversionHelper.GetProperty(members, propertyAndNamePairs, names[index]);
+                var property = ConverterHelper.GetProperty(members, propertyAndNamePairs, names[index]);
                 properties.Add(property);
             }
 

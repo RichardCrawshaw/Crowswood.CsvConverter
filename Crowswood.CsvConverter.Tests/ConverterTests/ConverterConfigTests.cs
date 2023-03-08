@@ -11,7 +11,7 @@
         [TestMethod]
         public void ConfigurationRubbishTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 GlobalConfig,ExampleName,ExampleValue
 TypedConfig,TypeName,ExampleName,ExampleValue2
@@ -47,7 +47,7 @@ Values,ExampleType,#,""Third name"",""A further value""
         [TestMethod]
         public void ConfigurationGlobalTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 GlobalConfig,PropertyPrefix,PP
 GlobalConfig,ValuesPrefix,VP
@@ -102,7 +102,7 @@ VP,ExampleType,#,""Third"",""Gama""
         [TestMethod]
         public void ConfigurationTypedTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 TypedConfig,ExampleType,PropertyPrefix,PP
 TypedConfig,ExampleType,ValuesPrefix,VP
@@ -158,7 +158,7 @@ VP,ExampleType,#,""Third"",""Gama""
         [TestMethod]
         public void ConfigurationGlobalOverridesDefaultTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 GlobalConfig,PropertyPrefix,PP
 GlobalConfig,ValuesPrefix,VP
@@ -196,7 +196,7 @@ Values,IgnoredType,#,""222"",""BBB""
         [TestMethod]
         public void ConfigurationTypedDoesnotOverrideDefaultTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 TypedConfig,ExampleType,PropertyPrefix,PP
 TypedConfig,ExampleType,ValuesPrefix,VP

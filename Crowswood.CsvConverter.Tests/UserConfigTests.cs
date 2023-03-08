@@ -8,11 +8,11 @@ namespace Crowswood.CsvConverter.Tests
         [TestMethod]
         public void DefaultConstructorTest()
         {
-            // Assign
-
+            // Arrange
+            var options = Options.None;
 
             // Act
-            var handler = new ConfigHandler();
+            var handler = new ConfigHandler(options);
 
             // Assert
             Assert.IsNotNull(handler, "Failed to create handler.");
@@ -26,7 +26,7 @@ namespace Crowswood.CsvConverter.Tests
         [TestMethod]
         public void StandardConstructorTest()
         {
-            // Assign
+            // Arrange
             var text = @"
 GlobalConfig,ExampleName,ExampleValue
 TypedConfig,TypeName,ExampleName,ExampleValue2
