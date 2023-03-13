@@ -4,7 +4,8 @@ using Crowswood.CsvConverter.Handlers;
 using Crowswood.CsvConverter.Helpers;
 using Crowswood.CsvConverter.Processors;
 
-[assembly: InternalsVisibleTo("Crowswood.CsvConverter.Tests")]
+[assembly: 
+    InternalsVisibleTo("Crowswood.CsvConverter.Tests")]
 
 namespace Crowswood.CsvConverter
 {
@@ -56,6 +57,31 @@ namespace Crowswood.CsvConverter
         #endregion
 
         #region Methods
+
+        /// <summary>
+        /// Determines and returns whether the specified <paramref name="text"/> appears to be 
+        /// valid CSV.
+        /// </summary>
+        /// <param name="text">A <see cref="string"/> that contains the text to check.</param>
+        /// <returns>True if the text appears to be valid CSV; false otherwise.</returns>
+        public bool Check(string text)
+        {
+            ValidateText(text);
+            var trimmedText = text.Trim();
+
+            // Specifically exclude text that looks like either JSON or XML.
+            if (trimmedText.StartsWith('{') && trimmedText.EndsWith('}')) return false;
+            if (trimmedText.StartsWith('[') && trimmedText.EndsWith(']')) return false;
+            if (trimmedText.StartsWith('<') && trimmedText.EndsWith('>')) return false;
+
+            var lines = SplitLines(text);
+
+            // Are there at least two lines, and do they all, once comments and blank lines have
+            // been removed, contain a comma?
+            return 
+                lines.Count >= 2 &&
+                lines.All(line => line.Contains(','));
+        }
 
         /// <summary>
         /// Deserialize the specified <paramref name="text"/> into an <see cref="IEnumerable{T}"/> 

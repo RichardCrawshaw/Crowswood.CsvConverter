@@ -1,4 +1,5 @@
-﻿using Crowswood.CsvConverter.Model;
+﻿using System.Reflection;
+using Crowswood.CsvConverter.Model;
 
 namespace Crowswood.CsvConverter.Extensions
 {
@@ -46,7 +47,8 @@ namespace Crowswood.CsvConverter.Extensions
         /// <param name="type">A <see cref="Type"/>.</param>
         /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="PropertyAndAttributePair"/> objects.</returns>
         public static IEnumerable<PropertyAndAttributePair> GetPropertyAndAttributePairs(this Type type) =>
-            type.GetProperties()
+            type.GetProperties(BindingFlags.Instance |
+                               BindingFlags.Public)
                 .Select(property => new PropertyAndAttributePair(property));
 
         /// <summary>
