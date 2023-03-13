@@ -60,9 +60,13 @@ namespace Crowswood.CsvConverter.Processors
             var typelessData =
                 types
                     .Where(type => type.IsAssignableTo(typeof(TBase)))
-                    .ToDictionary(
-                        type => this.conversionHandler.ConvertType(type.Name),
-                        type => ConvertTo(type, lines));
+                    .Select(type => new
+                    {
+                        TypeName = this.conversionHandler.ConvertType(type.Name),
+                        PropertyNames = ConvertTo(type, lines),
+                    })
+                    .Where(n => n.PropertyNames is not null)
+                    .ToDictionary(n => n.TypeName, n => n.PropertyNames);
 
             foreach (var data in typelessData.Values)
                 ConvertTo(data!, typelessData!);
@@ -147,6 +151,7 @@ namespace Crowswood.CsvConverter.Processors
             var types =
                 Assembly.GetAssembly(typeof(TBase))?.GetTypes()
                     .Where(type => type.Name == typeName)
+                    .Where(type => type.IsAssignableTo(typeof(TBase)))
                     .ToList() ?? new List<Type>();
             if (types.Count > 1)
                 throw new InvalidOperationException(

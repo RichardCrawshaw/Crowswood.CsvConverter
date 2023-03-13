@@ -43,7 +43,8 @@ namespace Crowswood.CsvConverter
                 // Finally do any value conversion.
                 return this.conversionHandler.ConvertValue(textValue.Trim().Trim('"').Trim());
             if (!targetType.IsValueType || targetType == typeof(DateTime))
-                throw new ArgumentException("Must be either a string, enum or numeric type.",
+                throw new ArgumentException(
+                    $"Must be either a string, enum or numeric type: {targetType.Name}.",
                     nameof(targetType));
 
             if (targetType == typeof(bool))

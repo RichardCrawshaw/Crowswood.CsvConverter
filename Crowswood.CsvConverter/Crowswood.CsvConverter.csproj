@@ -1,9 +1,49 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>Crowswood.CsvConverter</Title>
+    <Description>A compact and simple conversion library that supports multiple data types, metadata, configuration, comments and more within a single CSV file.</Description>
+    <PackageProjectUrl>https://github.com/RichardCrawshaw/Crowswood.CsvConverter</PackageProjectUrl>
+    <Copyright>Richard Crawshaw</Copyright>
+    <Company>Crowswood</Company>
+    <RepositoryUrl>https://github.com/RichardCrawshaw/Crowswood.CsvConverter</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>CSV;Converter;Serialize;Deserialize;Serialise;Deserialise</PackageTags>
+    <PackageReleaseNotes>Initial release</PackageReleaseNotes>
+    <PackageVersion>$(Version)</PackageVersion>
+    <Version>0.6.2-beta-02</Version>
+    <AssemblyVersion>0.6.1</AssemblyVersion>
+    <Configurations>Debug;Release</Configurations>
+    <PackageOutputPath>$(OutputPath)</PackageOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <Deterministic>False</Deterministic>
+    <ShouldCreateLogs>True</ShouldCreateLogs>
+    <AdvancedSettingsExpanded>False</AdvancedSettingsExpanded>
+    <UpdateAssemblyVersion>False</UpdateAssemblyVersion>
+    <UpdateAssemblyFileVersion>False</UpdateAssemblyFileVersion>
+    <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
+    <UpdatePackageVersion>False</UpdatePackageVersion>
+    <AssemblyInfoVersionType>SettingsVersion</AssemblyInfoVersionType>
+    <InheritWinAppVersionFrom>None</InheritWinAppVersionFrom>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Deterministic>False</Deterministic>
+    <ShouldCreateLogs>True</ShouldCreateLogs>
+    <AdvancedSettingsExpanded>False</AdvancedSettingsExpanded>
+    <UpdateAssemblyVersion>False</UpdateAssemblyVersion>
+    <UpdateAssemblyFileVersion>False</UpdateAssemblyFileVersion>
+    <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
+    <UpdatePackageVersion>True</UpdatePackageVersion>
+    <AssemblyInfoVersionType>SettingsVersion</AssemblyInfoVersionType>
+    <InheritWinAppVersionFrom>None</InheritWinAppVersionFrom>
+    <PackageVersionSettings>AssemblyVersion.NoneWithAutoReset.Beta</PackageVersionSettings>
   </PropertyGroup>
 
 </Project>
