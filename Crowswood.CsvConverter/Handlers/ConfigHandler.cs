@@ -107,7 +107,7 @@ namespace Crowswood.CsvConverter.Handlers
         /// <returns>A <see cref="string"/> containing the prefix.</returns>
         internal string GetConversionTypePrefix() => 
             GetGlobal(Configurations.ConversionTypePrefix)?.Value ??
-            this.options.ConversionTypePrefix; // GetConversionTypePrefix
+            this.options.ConversionTypePrefix;
 
         /// <summary>
         /// Gets the conversion value prefix.
@@ -115,7 +115,7 @@ namespace Crowswood.CsvConverter.Handlers
         /// <returns>A <see cref="string"/> containing the prefix.</returns>
         internal string GetConversionValuePrefix() =>
             GetGlobal(Configurations.ConversionValuePrefix)?.Value ??
-            this.options.ConversionValuePrefix; // GetConversionValuePrefix
+            this.options.ConversionValuePrefix;
 
         /// <summary>
         /// Gets the <see cref="GlobalConfig"/> item that has the specified <paramref name="name"/>, 
@@ -181,8 +181,8 @@ namespace Crowswood.CsvConverter.Handlers
         public string GetReferenceIdColumnName(string typeName) =>
             GetTyped(typeName, Configurations.ReferenceIdColumnName)?.Value ??
             GetGlobal(Configurations.ReferenceIdColumnName)?.Value ??
-            GetOptionReference(typeName)?.IdPropertyName ??
-            GetOptionReference()?.IdPropertyName ??
+            this.options.OptionsReferences.Get(typeName)?.IdPropertyName ??
+            this.options.OptionsReferences.Get()?.IdPropertyName ??
             Configurations.DefaultIdColumnName;
 
         /// <summary>
@@ -193,8 +193,8 @@ namespace Crowswood.CsvConverter.Handlers
         public string GetReferenceNameColumnName(string typeName) =>
             GetTyped(typeName, Configurations.ReferenceNameColumnName)?.Value ??
             GetGlobal(Configurations.ReferenceNameColumnName)?.Value ??
-            GetOptionReference(typeName)?.NamePropertyName ??
-            GetOptionReference()?.NamePropertyName ??
+            this.options.OptionsReferences.Get(typeName)?.NamePropertyName ??
+            this.options.OptionsReferences.Get()?.NamePropertyName ??
             Configurations.DefaultNameColumnName;
 
         /// <summary>
@@ -220,26 +220,6 @@ namespace Crowswood.CsvConverter.Handlers
                 this.options.ValuesPrefix,
             }.NotNull()
             .ToArray();
-
-        #endregion
-
-        #region Support routines
-
-        /// <summary>
-        /// Wrapper routine that gets the <see cref="OptionReference"/> for the default.
-        /// </summary>
-        /// <returns>An <see cref="OptionReference"/>; null if there is no default defined.</returns>
-        private OptionReference? GetOptionReference() =>
-            this.options.OptionsReferences.Get();
-
-        /// <summary>
-        /// Wrapper routine that gets the <see cref="OptionReferenceType"/> for the specified 
-        /// <paramref name="typeName"/>.
-        /// </summary>
-        /// <param name="typeName">A <see cref="string"/> containing the name of the type.</param>
-        /// <returns>An <see cref="OptionReferenceType"/>; null if there is nothing defined for the <paramref name="typeName"/>.</returns>
-        private OptionReferenceType? GetOptionReference(string typeName) =>
-            this.options.OptionsReferences.Get(typeName);
 
         #endregion
     }

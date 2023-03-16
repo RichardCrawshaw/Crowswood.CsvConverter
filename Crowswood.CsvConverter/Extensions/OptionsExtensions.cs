@@ -30,6 +30,61 @@ namespace Crowswood.CsvConverter.Extensions
                 .FirstOrDefault(n => n.TypeName == typeName);
 
         /// <summary>
+        /// Gets the <see cref="OptionMember"/> element from the <paramref name="options"/> that 
+        /// has the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="options">The <see cref="Options"/> object.</param>
+        /// <param name="name">A <see cref="string"/> that contains the name.</param>
+        /// <returns>A <see cref="OptionMember"/> object, or null.</returns>
+        public static OptionMember? GetOptionMember(this Options options, string name) =>
+            options.OptionMembers
+                .FirstOrDefault(om => om.Name == name);
+
+        /// <summary>
+        /// Gets the <see cref="OptionMember"/> element from the <paramref name="options"/> that 
+        /// has a property with the same name as the specified <paramref name="property"/>.
+        /// </summary>
+        /// <param name="options">The <see cref="Options"/> object.</param>
+        /// <param name="property">A <see cref="PropertyInfo"/> object.</param>
+        /// <returns>A <see cref="OptionMember"/> object, or null.</returns>
+        public static OptionMember? GetOptionMember(this Options options, PropertyInfo property) =>
+            options.OptionMembers
+                .FirstOrDefault(om => om.Property.Name == property.Name);
+
+        /// <summary>
+        /// Gets the <see cref="OptionMember"/> element from the <paramref name="options"/> that 
+        /// has the specified <paramref name="type"/>,
+        /// </summary>
+        /// <param name="options">The <see cref="Options"/> object.</param>
+        /// <param name="type">A <see cref="Type"/>.</param>
+        /// <returns>A <see cref="OptionMember"/> object, or null.</returns>
+        public static OptionMember? GetOptionMember(this Options options, Type type) =>
+            options.OptionMembers
+                .FirstOrDefault(om => om.Type == type);
+
+        /// <summary>
+        /// Gets the <see cref="OptionMetadata"/> that has the <seealso cref="OptionMetadata.Prefix"/> 
+        /// that matches the specified <paramref name="prefix"/>.
+        /// </summary>
+        /// <param name="options">The <see cref="Options"/> object.</param>
+        /// <param name="prefix">A <see cref="string"/> that contains the prefix used to identify the metadata.</param>
+        /// <returns>An <see cref="OptionMetadata"/> object; or null if none match.</returns>
+        public static OptionMetadata? GetOptionMetadata(this Options options, string prefix) =>
+            options.OptionMetadata
+                .FirstOrDefault(metadata => metadata.Prefix == prefix);
+
+        /// <summary>
+        /// Gets the <see cref="OptionMetadata"/> that has the <seealso cref="OptionMetadata.Type"/> 
+        /// that matches the specified <paramref name="type"/>.
+        /// </summary>
+        /// <param name="options">The <see cref="Options"/> object.</param>
+        /// <param name="type">A <see cref="Type"/>.</param>
+        /// <returns>An <see cref="OptionMetadata"/> object; or null if none match.</returns>
+        public static OptionMetadata? GetOptionMetadata(this Options options, Type type) =>
+            options.OptionMetadata
+                .FirstOrDefault(metadata => metadata.Type == type);
+
+        /// <summary>
         /// Retrieves the properties of the <seealso cref="OptionMetadata.Type"/> that match the
         /// <seealso cref="OptionMetadata.PropertyNames"/>.
         /// </summary>
@@ -39,5 +94,40 @@ namespace Crowswood.CsvConverter.Extensions
             optionMetadata.Type.GetProperties()
                 .Where(property => optionMetadata.PropertyNames.Contains(property.Name))
                 .ToArray();
+
+        /// <summary>
+        /// Gets the property names from <paramref name="optionMetadata"/> for the specified 
+        /// <paramref name="typeName"/>.
+        /// </summary>
+        /// <param name="optionMetadata">The <see cref="OptionMetadata"/> array.</param>
+        /// <param name="typeName">A <see cref="string"/> that contains the name of the type.</param>
+        /// <returns>A <see cref="string[]"/> that can be null.</returns>
+        public static string[]? GetPropertyNames(this OptionMetadata[] optionMetadata, string typeName) =>
+            optionMetadata
+                .Where(om => om.Type.Name == typeName)
+                .Select(om => om.PropertyNames)
+                .FirstOrDefault();
+
+        /// <summary>
+        /// Gets the <see cref="OptionType"/> element from the <paramref name="options"/> that has 
+        /// the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="options">The <see cref="Options"/> object.</param>
+        /// <param name="name">A <see cref="string"/> that contains the name.</param>
+        /// <returns>A <see cref="OptionType"/> object, or null.</returns>
+        public static OptionType? GetOptionType(this Options options, string name) =>
+            options.OptionTypes
+                .FirstOrDefault(ot=>ot.Name == name);
+
+        /// <summary>
+        /// Gets the <see cref="OptionType"/> element from the <paramref name="options"/> that has 
+        /// the specified <paramref name="type"/>.
+        /// </summary>
+        /// <param name="options">The <see cref="Options"/> object.</param>
+        /// <param name="type">A <see cref="Type"/>.</param>
+        /// <returns>A <see cref="OptionType"/> object, or null.</returns>
+        public static OptionType? GetOptionType(this Options options, Type type) =>
+            options.OptionTypes
+                .FirstOrDefault(ot => ot.Type == type);
     }
 }

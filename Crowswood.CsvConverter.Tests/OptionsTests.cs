@@ -114,9 +114,9 @@
             Assert.AreEqual(1, options.OptionMetadata.Length, "Unexpected number of Metadata.");
             Assert.AreEqual(typeof(OptionsBar), options.OptionMetadata[0].Type, "Unexpected OptionMetadata 0 Type.");
             Assert.AreEqual("Foo", options.OptionMetadata[0].Prefix, "Unexpected OptionMetadata 0 Prefix.");
-            Assert.AreEqual(typeof(OptionMetadata<OptionsBar>), options.OptionMetadata[0].GetType(), "Unexpected OptionMetadata 0 generic type.");
+            Assert.AreEqual(typeof(OptionTypedMetadata<OptionsBar>), options.OptionMetadata[0].GetType(), "Unexpected OptionMetadata 0 generic type.");
             Assert.IsTrue(
-                ((OptionMetadata<OptionsBar>)options.OptionMetadata[0]).PropertyNames
+                ((OptionTypedMetadata<OptionsBar>)options.OptionMetadata[0]).PropertyNames
                     .GroupBy(propertyName => propertyName)
                     .ToDictionary(n => n.Key, n => n.Count())
                     .All(kvp => (kvp.Key == "Bar" && kvp.Value == 1) ||

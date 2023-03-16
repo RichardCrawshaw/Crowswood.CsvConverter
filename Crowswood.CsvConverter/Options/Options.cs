@@ -143,19 +143,19 @@ namespace Crowswood.CsvConverter
 
 
         /// <summary>
-        /// Adds a new <see cref="OptionMetadata{T}"/> for the specified <paramref name="prefix"/>
+        /// Adds a new <see cref="OptionTypedMetadata{T}"/> for the specified <paramref name="prefix"/>
         /// and <paramref name="propertyNames"/>
         /// </summary>
-        /// <typeparam name="TMetadata">The generic parameter of the <see cref="OptionMetadata{T}"/>.</typeparam>
+        /// <typeparam name="TMetadata">The generic parameter of the <see cref="OptionTypedMetadata{T}"/>.</typeparam>
         /// <param name="prefix">A <see cref="string"/> that contains the prefix.</param>
         /// <param name="propertyNames">A <see cref="string[]"/> that contains the property names.</param>
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
         public Options ForMetadata<TMetadata>(string prefix, params string[] propertyNames)
             where TMetadata : class, new() =>
-            AddMetadata(new OptionMetadata<TMetadata>(prefix, propertyNames));
+            AddMetadata(new OptionTypedMetadata<TMetadata>(prefix, propertyNames));
 
         /// <summary>
-        /// Adds a new <see cref="OptionMetadataDictionary"/> for the specific <paramref name="prefix"/>
+        /// Adds a new <see cref="OptionTypelessMetadata"/> for the specific <paramref name="prefix"/>
         /// and <paramref name="propertyNames"/> with nulls being allowed or not through 
         /// <paramref name="allowNulls"/>.
         /// </summary>
@@ -163,8 +163,8 @@ namespace Crowswood.CsvConverter
         /// <param name="allowNulls">True if null values are allowed; false otherwise.</param>
         /// <param name="propertyNames">A <see cref="string[]"/> that contains the property names.</param>
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
-        public Options ForMetadata(string prefix, bool allowNulls,params string[] propertyNames)=>
-            AddMetadata(new OptionMetadataDictionary(prefix, propertyNames) 
+        public Options ForMetadata(string prefix, bool allowNulls, params string[] propertyNames) =>
+            AddMetadata(new OptionTypelessMetadata(prefix, propertyNames) 
             {
                 AllowNulls = allowNulls
             });

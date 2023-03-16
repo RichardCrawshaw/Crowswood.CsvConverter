@@ -158,11 +158,11 @@ namespace Crowswood.CsvConverter.Handlers
         /// <returns>A <see cref="IEnumerable{T}"/> of <see cref="string[]"/>.</returns>
         private List<object> GetMetadata(string typeName, IEnumerable<string> lines) =>
             ConverterHelper.GetItems(lines,
-                                      rejoinSplitQuotes: true,
-                                      trimItems: false,
-                                      typeName, 
-                                      this.MetadataPrefixes)
-                .Select(items => GetMetadata(GetOptionMetadata(items[0]), items[2..^0]))
+                                     rejoinSplitQuotes: true,
+                                     trimItems: false,
+                                     typeName,
+                                     this.MetadataPrefixes)
+                .Select(items => GetMetadata(this.options.GetOptionMetadata(items[0]), items[2..^0]))
                 .NotNull()
                 .ToList();
 
@@ -186,7 +186,7 @@ namespace Crowswood.CsvConverter.Handlers
             this.indexHandler.Initialise(typeName);
 
             var valueConverter = new ValueConverter(this.conversionHandler, this.indexHandler, typeName);
-            if (optionMetadata is OptionMetadataDictionary omd)
+            if (optionMetadata is OptionTypelessMetadata omd)
             {
                 var dictionaryMetadata = 
                     MetadataHelper.GetMetadataDictionary(valueConverter,
@@ -205,16 +205,6 @@ namespace Crowswood.CsvConverter.Handlers
                                    propertyValues);
             return result;
         }
-
-        /// <summary>
-        /// Gets the <see cref="OptionMetadata"/> that has the <seealso cref="OptionMetadata.Prefix"/> 
-        /// that matches the specified <paramref name="typeName"/>.
-        /// </summary>
-        /// <param name="typeName">A <see cref="string"/> that contains the name of the type of the metadata.</param>
-        /// <returns>An <see cref="OptionMetadata"/> object; or null if none match.</returns>
-        private OptionMetadata? GetOptionMetadata(string typeName) =>
-            this.options.OptionMetadata
-                .FirstOrDefault(metadata => metadata.Prefix == typeName);
 
         #endregion
     }
