@@ -51,10 +51,9 @@
     /// been configured.
     /// </summary>
     /// <typeparam name="T">The type of object to be created.</typeparam>
-    public sealed class OptionMetadata<T> : OptionMetadata
+    public sealed class OptionTypedMetadata<T> : OptionMetadata
         where T : class, new()
     {
-
         #region Properties
 
         /// <inheritdoc/>
@@ -64,7 +63,7 @@
 
         #region Constructors
 
-        public OptionMetadata(string prefix, params string[] propertyNames)
+        public OptionTypedMetadata(string prefix, params string[] propertyNames)
             : base(prefix, propertyNames) { }
 
         #endregion
@@ -78,11 +77,11 @@
     }
 
     /// <summary>
-    /// A sealed class that indicates that the metadata is a <see cref="Dictionary{TKey, TValue}"/>
-    /// of <see cref="string"/> keyed by <see cref="string"/>; the value may be nullable depending
+    /// A sealed class that indicates that the metadata is typeless and contains information about 
+    /// a specific type of metadata that has been configured; the value may be nullable depending
     /// on <seealso cref="AllowNulls"/>.
     /// </summary>
-    public sealed class OptionMetadataDictionary : OptionMetadata
+    public sealed class OptionTypelessMetadata : OptionMetadata
     {
         #region Properties
 
@@ -101,7 +100,7 @@
 
         #region Constructors
 
-        public OptionMetadataDictionary(string prefix, params string[] propertyNames)
+        public OptionTypelessMetadata(string prefix, params string[] propertyNames)
             : base(prefix, propertyNames) { }
 
         #endregion

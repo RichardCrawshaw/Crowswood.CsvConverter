@@ -2,7 +2,9 @@
 using System.Runtime.CompilerServices;
 using Crowswood.CsvConverter.Handlers;
 using Crowswood.CsvConverter.Helpers;
+using Crowswood.CsvConverter.Interfaces;
 using Crowswood.CsvConverter.Processors;
+using static Crowswood.CsvConverter.Handlers.ConfigHandler;
 
 [assembly: 
     InternalsVisibleTo("Crowswood.CsvConverter.Tests")]
@@ -198,6 +200,54 @@ namespace Crowswood.CsvConverter
             return result;
         }
 
+        /// <summary>
+        /// Initialises and retrieves an <see cref="ISerialization"/> object that can be used to 
+        /// manage the serialization of multiple objects, including configuration, conversions, 
+        /// typed and typeless metadata, typed and typeless data, and comments.
+        /// </summary>
+        /// <returns>An <see cref="ISerialization"/> object.</returns>
+        public ISerialization Serialize() => new Serialization(this, this.options);
+
+        #endregion
+
+        #region Nested classes
+
+        /// <summary>
+        /// Class that defines the keys used in the data dictionaries.
+        /// </summary>
+        public static class Keys
+        {
+            /// <summary>
+            /// Keys used in the global config data dictionary.
+            /// </summary>
+            public static class GlobalConfig
+            {
+                public const string ConversionTypePrefix = Configurations.ConversionTypePrefix;
+                public const string ConversionValuePrefix = Configurations.ConversionValuePrefix;
+                public const string PropertyPrefix = Configurations.PropertyPrefix;
+                public const string ReferenceIdColumnName = Configurations.ReferenceIdColumnName;
+                public const string ReferenceNameColumnName = Configurations.ReferenceNameColumnName;
+                public const string ValuesPrefix = Configurations.ValuesPrefix;
+
+                internal const string GlobalConfigPrefix = Configurations.GlobalConfigPrefix;
+            }
+
+            /// <summary>
+            /// Keys used in the typed config data dictionary.
+            /// </summary>
+            public static class TypedConfig
+            {
+                public const string ConversionTypePrefix = Configurations.ConversionTypePrefix;
+                public const string ConversionValuePrefix = Configurations.ConversionValuePrefix;
+                public const string PropertyPrefix = Configurations.PropertyPrefix;
+                public const string ReferenceIdColumnName = Configurations.ReferenceIdColumnName;
+                public const string ReferenceNameColumnName = Configurations.ReferenceNameColumnName;
+                public const string ValuesPrefix = Configurations.ValuesPrefix;
+
+                internal const string TypedConfigPrefix = Configurations.TypedConfigPrefix;
+            }
+        }
+
         #endregion
 
         #region Support routines
@@ -236,8 +286,10 @@ namespace Crowswood.CsvConverter
         /// <param name="text">A <see cref="string"/> containing the text to split.</param>
         /// <returns>A <see cref="List{T}"/> of <see cref="string"/>.</returns>
         private List<string> SplitLines(string text) =>
+            // Split using `\r\n` CharArray rather than `Environment.NewLine` to cater for files
+            // that use a differnet standard from the current OS.
             text.Split("\r\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries |
-                                                StringSplitOptions.TrimEntries)
+                                             StringSplitOptions.TrimEntries)
                 .Where(line => !this.options.CommentPrefixes.Any(prefix => line.StartsWith(prefix)))
                 .ToList();
 

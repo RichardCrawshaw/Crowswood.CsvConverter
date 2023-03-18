@@ -25,11 +25,27 @@
                     "The metadata prefix must be different to that of the property prefix and values prefix.",
                     nameof(options));
 
-            if (options.OptionMetadata
-                    .Where(om => om is not OptionMetadataDictionary)
-                    .Select(om => new { OptionsMetadata = om, Properties = om.Type.GetProperties(), })
-                    .Select(n => new { n.OptionsMetadata, PropertyNames = n.Properties.Select(p => p.Name).ToList(), })
-                    .Any(n => n.OptionsMetadata.PropertyNames.Any(pn => !n.PropertyNames.Contains(pn))))
+            var typedMetadataProperties =
+                options.OptionMetadata
+                    .Where(om => om is not OptionTypelessMetadata)
+                    .Select(om => new 
+                    {
+                        OptionsMetadata = om,
+                        Properties = om.Type.GetProperties(),
+                    })
+                    .Select(n => new 
+                    {
+                        n.OptionsMetadata,
+                        PropertyNames = 
+                            n.Properties
+                                .Select(p => p.Name)
+                                .ToList(),
+                    })
+                    .ToList();
+            if (typedMetadataProperties
+                    .Any(n => 
+                        n.OptionsMetadata.PropertyNames
+                            .Any(pn => !n.PropertyNames.Contains(pn))))
                 throw new ArgumentException(
                     "The metadata may only contain property names defined by the targeted type.",
                     nameof(options));

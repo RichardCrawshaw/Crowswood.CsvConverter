@@ -18,6 +18,15 @@ namespace Crowswood.CsvConverter.Extensions
             type.BaseType is null ? 0 : type.BaseType.GetDepth() + 1;
 
         /// <summary>
+        /// Extension method to determine and return the depth of the type that declares the 
+        /// <paramref name="property"/>.
+        /// </summary>
+        /// <param name="property">The <see cref="PropertyInfo"/>.</param>
+        /// <returns>An <see cref="int"/>.</returns>
+        public static int GetTypeDepth(this PropertyInfo property) =>
+            property.DeclaringType?.GetDepth() ?? 0;
+
+        /// <summary>
         /// Extension method to return the <see cref="Type"/> name in the standard readable form.
         /// </summary>
         /// <param name="type">The <see cref="Type"/>.</param>

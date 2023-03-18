@@ -18,19 +18,14 @@ namespace Crowswood.CsvConverter.Helpers
         /// <param name="properties">A <see cref="PropertyInfo"/> array.</param>
         /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</returns>
         internal static IEnumerable<string> AsStrings<TBase>(TBase item, PropertyInfo[] properties)
-            where TBase : class
-        {
-            var results = new List<string>();
-
-            foreach (var property in properties)
-            {
-                var value = property.GetValue(item)?.ToString();
-                var text = GetText(property.PropertyType, value);
-                results.Add(text);
-            }
-
-            return results;
-        }
+            where TBase : class =>
+            properties
+                .Select(property => new 
+                {
+                    Type = property.PropertyType,
+                    Value = property.GetValue(item),
+                })
+                .Select(item => GetText(item.Type, item.Value?.ToString()));
 
         /// <summary>
         /// Format the specified <paramref name="prefix"/>, <paramref name="typeName"/> and 

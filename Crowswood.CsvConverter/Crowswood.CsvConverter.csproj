@@ -46,4 +46,9 @@
     <PackageVersionSettings>AssemblyVersion.NoneWithAutoReset.Beta</PackageVersionSettings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Remove="Options\Options.cs~RF10c8ef71.TMP" />
+    <None Remove="Serialization.cs~RFbb9b9a6.TMP" />
+  </ItemGroup>
+
 </Project>
