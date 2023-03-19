@@ -362,6 +362,9 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                     .TypedMetadata<Foo, SomeMetadata>(metadata)
                     .Serialize();
 
+            // Metadata,Foo,"ABC",1
+            // Metadata,Foo,"XYZ",99
+
             // Assert
             Assert.IsNotNull(text, "Failed to serialize.");
 

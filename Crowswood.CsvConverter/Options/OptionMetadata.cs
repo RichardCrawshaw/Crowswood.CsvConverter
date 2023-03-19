@@ -50,14 +50,14 @@
     /// A sealed generic class that contains information about a specific type of metadata that has
     /// been configured.
     /// </summary>
-    /// <typeparam name="T">The type of object to be created.</typeparam>
-    public sealed class OptionTypedMetadata<T> : OptionMetadata
-        where T : class, new()
+    /// <typeparam name="TMetadata">The type of the metadata.</typeparam>
+    public sealed class OptionTypedMetadata<TMetadata> : OptionMetadata
+        where TMetadata : class, new()
     {
         #region Properties
 
         /// <inheritdoc/>
-        public override Type Type => typeof(T);
+        public override Type Type => typeof(TMetadata);
 
         #endregion
 
@@ -71,7 +71,7 @@
         #region Methods
 
         /// <inheritdoc/>
-        public override object CreateInstance() => new T();
+        public override object CreateInstance() => new TMetadata();
 
         #endregion
     }

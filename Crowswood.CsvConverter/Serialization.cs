@@ -50,10 +50,10 @@ namespace Crowswood.CsvConverter
         }
 
         /// <inheritdoc/>
-        public ISerialization TypeConfig<TObject>(Dictionary<string, string> typeConfiguration)
+        public ISerialization TypeConfig(string typeName, Dictionary<string, string> typeConfiguration)
         {
             this.serializations.Add(
-                new TypedConfigData(typeof(TObject).Name, typeConfiguration));
+                new TypedConfigData(typeName, typeConfiguration));
             return this;
         }
 
@@ -82,42 +82,42 @@ namespace Crowswood.CsvConverter
         }
 
         /// <inheritdoc/>
-        public ISerialization Comment(string commentPrefix, string comment)
+        public ISerialization Comment(string commentPrefix, params string[] comments)
         {
             this.serializations.Add(
-                new CommentData(commentPrefix, comment));
+                new CommentData(commentPrefix, comments));
             return this;
         }
 
         /// <inheritdoc/>
-        public ISerialization TypedMetadata<TObject, TMetadata>(IEnumerable<TMetadata> metadata)
-            where TObject : class
+        public ISerialization TypedMetadata<TMetadata>(string dataTypeName, IEnumerable<TMetadata> metadata)
             where TMetadata : class
         {
             var metadataType = typeof(TMetadata);
-
             var optionMetadata =
-                this.Options.GetOptionMetadata(metadataType) ?? 
+                this.Options.GetOptionMetadata(metadataType) ??
                 throw new InvalidOperationException(
                     $"No Metadata definition in Options for '{metadataType.Name}'.");
 
             this.serializations.Add(
-                new TypedMetadataData<TObject, TMetadata>(optionMetadata.Prefix,
-                                                          optionMetadata.PropertyNames,
-                                                          metadata));
+                new TypedMetadataData<TMetadata>(dataTypeName,
+                                                 optionMetadata.Prefix,
+                                                 optionMetadata.PropertyNames,
+                                                 metadata));
+
             return this;
         }
 
         /// <inheritdoc/>
-        public ISerialization TypelessMetadata(string typeName, string metadataPrefix, Dictionary<string, string> metadata)
+        public ISerialization TypelessMetadata(string dataTypeName, string metadataPrefix, Dictionary<string, string> metadata)
         {
             var optionMetadata =
                 this.Options.GetOptionMetadata(metadataPrefix) ?? 
                 throw new InvalidOperationException(
-                    $"No Metadata definition in Options for metadata with a prefix of '{metadataPrefix}'.");
+                    $"No Metadata definition in Options for a prefix of '{metadataPrefix}'.");
 
             this.serializations.Add(
-                new TypelessMetadataData(typeName,
+                new TypelessMetadataData(dataTypeName,
                                          optionMetadata.Prefix,
                                          optionMetadata.PropertyNames,
                                          metadata));
@@ -212,7 +212,9 @@ namespace Crowswood.CsvConverter
             {
                 this.prefix = prefix;
                 this.comments =
-                    comments
+                    !comments.Any()
+                    ? new [] { string.Empty, }
+                    : comments
                         // Split using `\r\n` CharArray rather than `Environment.NewLine` to cater
                         // for files that use a differnet standard from the current OS.
                         // Don't trim the resultant comments to allow them to have leading spaces.
@@ -339,33 +341,41 @@ namespace Crowswood.CsvConverter
         /// </summary>
         private abstract class BaseMetadataData : BaseSerializationData
         {
-            protected readonly string typeName;
+            /// <summary>
+            /// The name of the type of the object data that this metadata is attached to.
+            /// </summary>
+            protected readonly string dataTypeName;
+
+            /// <summary>
+            /// The prefix to use to identify this metadata.
+            /// </summary>
             protected readonly string metadataPrefix;
+
+            /// <summary>
+            /// The names of the properties of the metadata in the order that they are to be serialized.
+            /// </summary>
             protected readonly string[]? propertyNames;
 
-            protected BaseMetadataData(string typeName, string metadataPrefix, string[]? propertyNames)
+            protected BaseMetadataData(string dataTypeName, string metadataPrefix, string[]? propertyNames)
             {
-                this.typeName = typeName;
+                this.dataTypeName = dataTypeName;
                 this.metadataPrefix = metadataPrefix;
                 this.propertyNames = propertyNames;
             }
         }
 
         /// <summary>
-        /// A sealed class for serializing typed metadata of <typeparamref name="TMetadata"/> for 
-        /// a <typeparamref name="TObject"/>.
+        /// A sealed class for serializing typed metadata of <typeparamref name="TMetadata"/>.
         /// </summary>
-        /// <typeparam name="TObject">The type of object that the metadata is applied to.</typeparam>
         /// <typeparam name="TMetadata">The type of the metadata.</typeparam>
-        private sealed class TypedMetadataData<TObject, TMetadata> : BaseMetadataData
-            where TObject : class
+        private sealed class TypedMetadataData<TMetadata> : BaseMetadataData
             where TMetadata : class
         {
             private readonly IEnumerable<TMetadata> metadata;
             private readonly PropertyInfo[] properties;
 
-            public TypedMetadataData(string prefix, string[]? propertyNames, IEnumerable<TMetadata> metadata)
-                : base(typeof(TObject).Name, prefix, propertyNames)
+            public TypedMetadataData(string dataTypeName, string prefix, string[]? propertyNames, IEnumerable<TMetadata> metadata)
+                : base(dataTypeName, prefix, propertyNames)
             {
                 this.metadata = metadata;
 
@@ -377,12 +387,11 @@ namespace Crowswood.CsvConverter
                         .ToArray();
             }
 
-            /// <inheritdoc/>
-            public override string[] Serialize() =>
+            public override string[] Serialize() => 
                 this.metadata
                     .Select(md => GetValues(md))
                     .Where(values => !string.IsNullOrWhiteSpace(values))
-                    .Select(values => $"{this.metadataPrefix},{this.typeName},{values}")
+                    .Select(values => $"{this.metadataPrefix},{this.dataTypeName},{values}")
                     .ToArray();
 
             private string GetValues(TMetadata metadata)
@@ -421,12 +430,12 @@ namespace Crowswood.CsvConverter
         {
             private readonly Dictionary<string, string> metadata;
 
-            public TypelessMetadataData(string typeName, string metadataPrefix, string[]? propertyNames, Dictionary<string, string> metadata)
-                : base(typeName, metadataPrefix, propertyNames) => this.metadata = metadata;
+            public TypelessMetadataData(string dataTypeName, string metadataPrefix, string[]? propertyNames, Dictionary<string, string> metadata)
+                : base(dataTypeName, metadataPrefix, propertyNames) => this.metadata = metadata;
 
             /// <inheritdoc/>
             public override string[] Serialize() =>
-                new[] { $"{this.metadataPrefix},{this.typeName},{GetValues()}" };
+                new[] { $"{this.metadataPrefix},{this.dataTypeName},{GetValues()}" };
 
             private string GetValues()
             {
