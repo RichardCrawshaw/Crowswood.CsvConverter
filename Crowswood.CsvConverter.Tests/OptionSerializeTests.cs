@@ -1,11 +1,10 @@
-﻿using System.ComponentModel;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
 
-namespace Crowswood.CsvConverter.Tests.ConverterTests
+namespace Crowswood.CsvConverter.Tests
 {
     [TestClass]
-    public class ConverterSerializeTests
+    public class OptionSerializeTests
     {
         private readonly bool logSerializedOutput = false;
 
@@ -18,39 +17,17 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
         private const string UNWANTED_MESSAGE = "Found {0}.";
 
         [TestMethod]
-        public void NoDataTest()
-        {
-            // Arrange
-            var options =
-                Options.None;
-            var converter = new Converter(options);
-
-            // Act
-            var text =
-                converter
-                    .Serialize()
-                    .ToString();
-
-            // Assert
-            Assert.IsNotNull(text, "Failed to serialize.");
-            Assert.IsTrue(string.IsNullOrEmpty(text), 
-                "Serialization with no data does not produce empty result.");
-        }
-
-        [TestMethod]
         public void BlankLineTest()
         {
             // Arrange
             var options =
-                Options.None;
+                new Options()
+                    .Serialize(serialize =>
+                        serialize.BlankLine(2));
             var converter = new Converter(options);
 
             // Act
-            var text =
-                converter
-                    .Serialize()
-                    .BlankLine(2)
-                    .ToString();
+            var text = converter.Serialize(Array.Empty<object>());
 
             // Assert
             Assert.IsNotNull(text, "Failed to serialize.");
@@ -63,27 +40,39 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
         public void CommentTest()
         {
             // Arrange
-            var options =
-                Options.None;
-            var converter = new Converter(options);
-
             var prefix = "#";
             var comment = "This is a comment.";
 
+            var options =
+                new Options()
+                    .Serialize(serialize =>
+                        serialize
+                            .Comment(prefix, comment));
+            var converter = new Converter(options);
+
             // Act
-            var text =
-                converter
-                    .Serialize()
-                    .Comment(prefix, comment)
-                    .ToString();
+            var text = converter.Serialize(Array.Empty<object>());
 
             // Assert
+            Assert.IsNotNull(text, "Failed to serialize.");
+
+            if (logSerializedOutput)
+                Logger.LogMessage("{0}", text);
+
             Dictionary<string, string> checks = new()
             {
                 ["Comment"] = "# This is a comment.",
             };
 
-            AssertResult(text, 1, 1, checks);
+            Assert.AreEqual(checks.Count, text.Split(Environment.NewLine).Length,
+                "Unexpected number of lines.");
+
+            foreach (var check in checks)
+            {
+                var pattern = string.Format(PATTERN, check.Value);
+                Assert.IsTrue(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
+                    EXPECTED_MESSAGE, check.Key);
+            }
         }
 
         [TestMethod]
@@ -117,7 +106,7 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 Options.None;
             var converter = new Converter(options);
 
-            var globalConfig = 
+            var globalConfig =
                 new Dictionary<string, string>
                 {
                     [Converter.Keys.GlobalConfig.ConversionTypePrefix] = "AAA",
@@ -137,6 +126,11 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                     .ToString();
 
             // Assert
+            Assert.IsNotNull(text, "Failed to serialize.");
+
+            if (logSerializedOutput)
+                Logger.LogMessage("{0}", text);
+
             Dictionary<string, string> checks = new()
             {
                 ["GlobalConfig ConversionTypePrefix"] = "GlobalConfig,ConversionTypePrefix,AAA",
@@ -147,22 +141,33 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 ["GlobalConfig ValuesPrefix"] = "GlobalConfig,ValuesPrefix,FFF",
             };
 
+            Assert.AreEqual(checks.Count, text.Split(Environment.NewLine).Length,
+                "Unexpected number of lines.");
+
+            foreach (var check in checks)
+            {
+                var pattern = string.Format(PATTERN, check.Value);
+                Assert.IsTrue(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
+                    EXPECTED_MESSAGE, check.Key);
+            }
+
             Dictionary<string, string> unwanted = new()
             {
                 ["Invalid GlobalConfig"] = "GlobalConfig,Rubbish,.*",
             };
 
-            AssertResult(text, checks.Count, 0, checks, unwanted);
+            foreach (var check in unwanted)
+            {
+                var pattern = string.Format(PATTERN, check.Value);
+                Assert.IsFalse(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
+                    UNWANTED_MESSAGE, check.Key);
+            }
         }
 
         [TestMethod]
         public void TypedConfigTest()
         {
             // Arrange
-            var options =
-                Options.None;
-            var converter = new Converter(options);
-
             var typedConfig =
                 new Dictionary<string, string>
                 {
@@ -175,14 +180,22 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                     ["Rubbish"] = "aaa",
                 };
 
+            var options =
+                new Options()
+                    .Serialize(serialize =>
+                        serialize
+                            .TypeConfig<Foo>(typedConfig));
+            var converter = new Converter(options);
+
             // Act
-            var text =
-                converter
-                    .Serialize()
-                    .TypeConfig<Foo>(typedConfig)
-                    .ToString();
+            var text = converter.Serialize(Array.Empty<object>());
 
             // Assert
+            Assert.IsNotNull(text, "Failed to serialize.");
+
+            if (logSerializedOutput)
+                Logger.LogMessage("{0}", text);
+
             Dictionary<string, string> checks = new()
             {
                 ["TypedConfig Foo ConversionTypePrefix"] = "TypedConfig,Foo,ConversionTypePrefix,AAA",
@@ -193,70 +206,111 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 ["TypedConfig Foo ValuesPrefix"] = "TypedConfig,Foo,ValuesPrefix,FFF",
             };
 
+            Assert.AreEqual(checks.Count, text.Split(Environment.NewLine).Length,
+                "Unexpected number of lines.");
+
+            foreach (var check in checks)
+            {
+                var pattern = string.Format(PATTERN, check.Value);
+                Assert.IsTrue(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
+                    EXPECTED_MESSAGE, check.Key);
+            }
+
             Dictionary<string, string> unwanted = new()
             {
                 ["Invalid GlobalConfig"] = "TypedConfig,Foo,Rubbish,.*",
             };
 
-            AssertResult(text, checks.Count, 0, checks, unwanted);
+            foreach (var check in unwanted)
+            {
+                var pattern = string.Format(PATTERN, check.Value);
+                Assert.IsFalse(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
+                    UNWANTED_MESSAGE, check.Key);
+            }
         }
 
         [TestMethod]
         public void TypeConversionTest()
         {
             // Arrange
-            var options = Options.None;
-            var converter = new Converter(options);
-
             var typeConversion =
                 new Dictionary<string, string>
                 {
                     ["Foo"] = "Bar",
                 };
 
+            var options =
+                new Options()
+                    .Serialize(serialize =>
+                        serialize
+                            .TypeConversion(typeConversion));
+            var converter = new Converter(options);
+
             // Act
-            var text =
-                converter
-                    .Serialize()
-                    .TypeConversion(typeConversion)
-                    .ToString();
+            var text = converter.Serialize(Array.Empty<object>());
 
             // Assert
+            Assert.IsNotNull(text, "Failed to serialize.");
+
+            if (logSerializedOutput)
+                Logger.LogMessage("{0}", text);
+
             Dictionary<string, string> checks = new()
             {
                 ["TypeConversion 'Foo' to 'Bar'"] = "ConversionTypePrefix,\"Foo\",\"Bar\"",
             };
 
-            AssertResult(text, checks.Count, 0, checks);
+            Assert.AreEqual(checks.Count, text.Split(Environment.NewLine).Length,
+                "Unexpected number of lines.");
+
+            foreach (var check in checks)
+            {
+                var pattern = string.Format(PATTERN, check.Value);
+                Assert.IsTrue(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
+                    EXPECTED_MESSAGE, check.Key);
+            }
         }
 
         [TestMethod]
         public void ValueConversionTest()
         {
             // Arrange
-            var options = Options.None;
-            var converter = new Converter(options);
-
             var valueConversion =
                 new Dictionary<string, string>
                 {
                     ["Foo"] = "Bar",
                 };
 
+            var options =
+                new Options()
+                    .Serialize(serialize =>
+                        serialize
+                            .ValueConversion(valueConversion));
+            var converter = new Converter(options);
+
             // Act
-            var text =
-                converter
-                    .Serialize()
-                    .ValueConversion(valueConversion)
-                    .ToString();
+            var text = converter.Serialize(Array.Empty<object>());
 
             // Assert
+            Assert.IsNotNull(text, "Failed to serialize.");
+
+            if (logSerializedOutput)
+                Logger.LogMessage("{0}", text);
+
             Dictionary<string, string> checks = new()
             {
                 ["ValueConversion 'Foo' to 'Bar'"] = "ConversionValuePrefix,\"Foo\",\"Bar\"",
             };
 
-            AssertResult(text, checks.Count, 0, checks);
+            Assert.AreEqual(checks.Count, text.Split(Environment.NewLine).Length,
+                "Unexpected number of lines.");
+
+            foreach (var check in checks)
+            {
+                var pattern = string.Format(PATTERN, check.Value);
+                Assert.IsTrue(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
+                    EXPECTED_MESSAGE, check.Key);
+            }
         }
 
         [TestMethod]
@@ -265,11 +319,6 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             // Arrange
             const string metadataPrefix = "Metadata";
             var propertyNames = new[] { "Name", "Number", };
-            var options =
-                new Options()
-                    .ForMetadata<SomeMetadata>(metadataPrefix, propertyNames[0], propertyNames[1]);
-            var converter = new Converter(options);
-
             var metadata =
                 new List<SomeMetadata>
                 {
@@ -277,21 +326,41 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                     new SomeMetadata{ Name = "XYZ", Number = 99, },
                 };
 
+            var options =
+                new Options()
+                    .ForMetadata<SomeMetadata>(metadataPrefix, propertyNames[0], propertyNames[1])
+                    .Serialize(serialize =>
+                        serialize
+                            .TypedMetadata<SomeMetadata, Foo>(metadata));
+            var converter = new Converter(options);
+
             // Act
-            var text =
-                converter
-                    .Serialize()
-                    .TypedMetadata<SomeMetadata, Foo>(metadata)
-                    .ToString();
+            var text = converter.Serialize(Array.Empty<object>());
+
+            // Metadata,Foo,"ABC",1
+            // Metadata,Foo,"XYZ",99
 
             // Assert
+            Assert.IsNotNull(text, "Failed to serialize.");
+
+            if (logSerializedOutput)
+                Logger.LogMessage("{0}", text);
+
             Dictionary<string, string> checks = new()
             {
                 ["Foo Metadata 'ABC'"] = "Metadata,Foo,\"ABC\",1",
                 ["Foo Metadata 'XYZ'"] = "Metadata,Foo,\"XYZ\",99",
             };
 
-            AssertResult(text, checks.Count, 0, checks);
+            Assert.AreEqual(checks.Count, text.Split(Environment.NewLine).Length,
+                "Unexpected number of lines.");
+
+            foreach (var check in checks)
+            {
+                var pattern = string.Format(PATTERN, check.Value);
+                Assert.IsTrue(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
+                    EXPECTED_MESSAGE, check.Key);
+            }
         }
 
         [TestMethod]
@@ -300,11 +369,6 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             // Arrange
             var prefix = "typelessMD";
             var propertyNames = new[] { "Name", "Number", };
-            var options =
-                new Options()
-                    .ForMetadata(prefix, true, propertyNames);
-            var converter = new Converter(options);
-
             var metadata =
                 new Dictionary<string, string>
                 {
@@ -312,100 +376,43 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                     [propertyNames[1]] = 77.ToString(),
                 };
 
+            var options =
+                new Options()
+                    .ForMetadata(prefix, true, propertyNames)
+                    .Serialize(serialize =>
+                        serialize
+                            .TypelessMetadata("Foo", prefix, metadata));
+            var converter = new Converter(options);
+
             // Act
-            var text =
-                converter
-                    .Serialize()
-                    .TypelessMetadata("Foo", prefix, metadata)
-                    .ToString();
+            var text = converter.Serialize(Array.Empty<object>());
 
             // Assert
+            Assert.IsNotNull(text, "Failed to serialize.");
+
+            if (logSerializedOutput)
+                Logger.LogMessage("{0}", text);
+
             Dictionary<string, string> checks = new()
             {
                 ["Typeless Metadata"] = "typelessMD,Foo,\"Fred\",\"77\"",
             };
 
-            AssertResult(text, checks.Count, 0, checks);
-        }
+            Assert.AreEqual(checks.Count, text.Split(Environment.NewLine).Length,
+                "Unexpected number of lines.");
 
-        [TestMethod]
-        public void TypedDataTest()
-        {
-            // Arrange
-            var options = Options.None;
-            var converter = new Converter(options);
-
-            var fooData =
-                new List<Foo>
-                {
-                    new Foo { Id = 1, Name = "Fred", Value = "East", },
-                    new Foo { Id = 2, Name = "Bert", Value = "West", },
-                };
-
-            // Act
-            var text =
-                converter
-                    .Serialize()
-                    .TypedData<Foo>(fooData)
-                    .ToString();
-
-            // Assert
-            Dictionary<string, string> checks = new()
+            foreach (var check in checks)
             {
-                ["Foo properties"] = "Properties,Foo,Id,Name,Value",
-                ["Foo value 1"] = "Values,Foo,1,\"Fred\",\"East\"",
-                ["Foo value 2"] = "Values,Foo,2,\"Bert\",\"West\"",
-            };
-
-            AssertResult(text, checks.Count, 0, checks);
-        }
-
-        [TestMethod]
-        public void TypelessDataTest()
-        {
-            // Arrange
-            var options =
-                new Options()
-                    .ForType<Foo>();
-            var converter = new Converter(options);
-
-            var names = new[] { "Id", "Name", "Value", };
-            List<string[]> values = new()
-            {
-                new[] { "1", "Fred", "East", },
-                new[] { "2", "Bert", "West", }
-            };
-
-            // Act
-            var text=
-                converter
-                    .Serialize()
-                    .TypelessData("SomeDataType", names, values)
-                    .ToString();
-
-            // Assert
-            Dictionary<string, string> checks = new()
-            {
-                ["Properties"] = "Properties,SomeDataType,Id,Name,Value",
-                ["Value 1"] = "Values,SomeDataType,\"1\",\"Fred\",\"East\"",
-                ["Value 2"] = "Values,SomeDataType,\"2\",\"Bert\",\"West\"",
-            };
-
-            AssertResult(text, checks.Count, 0, checks);
+                var pattern = string.Format(PATTERN, check.Value);
+                Assert.IsTrue(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
+                    EXPECTED_MESSAGE, check.Key);
+            }
         }
 
         [TestMethod]
         public void FullTypedTest()
         {
             // Arrange
-            const string metadataPrefix = "Metadata";
-            var metadataPropertyNames = new[] { "Name", "Number", };
-            var options =
-                new Options()
-                    .ForMetadata<SomeMetadata>(metadataPrefix, metadataPropertyNames[0], metadataPropertyNames[1])
-                    .ForType<Foo>();
-            var converter = new Converter(options);
-
             var openingComment = "This is the Full Typed Test.";
             var globalConfigComment = "Here is the global configuration.";
             Dictionary<string, string> globalConfiguration = new()
@@ -443,6 +450,32 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 new SomeMetadata{ Name = "ABC", Number = 1, },
                 new SomeMetadata{ Name = "XYZ", Number = 99, },
             };
+
+            const string metadataPrefix = "Metadata";
+            var propertyNames = new[] { "Name", "Number", };
+            var options =
+                new Options()
+                    .ForMetadata<SomeMetadata>(metadataPrefix, propertyNames[0], propertyNames[1])
+                    .ForType<Foo>()
+                    .Serialize(serialize =>
+                        serialize
+                            .Comment("#", openingComment)
+                            .BlankLine()
+                            .Comment("#", globalConfigComment)
+                            .GlobalConfig(globalConfiguration)
+                            .BlankLine()
+                            .Comment("#", typeConfigComment)
+                            .TypeConfig<Foo>(fooTypeConfiguration)
+                            .BlankLine()
+                            .Comment("#", typeConversionComment)
+                            .TypeConversion(typeConversion)
+                            .BlankLine()
+                            .Comment("#", valueConversionComment)
+                            .ValueConversion(valueConversion)
+                            .BlankLine()
+                            .Comment("#", fooDataComment)
+                            .TypedMetadata<SomeMetadata, Foo>(fooMetadata));
+            var converter = new Converter(options);
             List<Foo> fooData = new()
             {
                 new Foo { Id = 1, Name = "Fred", Value = "East", },
@@ -450,29 +483,45 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             };
 
             // Act
-            var text =
-                converter
-                    .Serialize()
-                    .Comment("#", openingComment)
-                    .BlankLine()
-                    .Comment("#", globalConfigComment)
-                    .GlobalConfig(globalConfiguration)
-                    .BlankLine()
-                    .Comment("#", typeConfigComment)
-                    .TypeConfig<Foo>(fooTypeConfiguration)
-                    .BlankLine()
-                    .Comment("#", typeConversionComment)
-                    .TypeConversion(typeConversion)
-                    .BlankLine()
-                    .Comment("#", valueConversionComment)
-                    .ValueConversion(valueConversion)
-                    .BlankLine()
-                    .Comment("#", fooDataComment)
-                    .TypedMetadata<SomeMetadata, Foo>(fooMetadata)
-                    .TypedData<Foo>(fooData)
-                    .ToString();
+            var text = converter.Serialize<Foo>(fooData);
 
             // Assert
+            Assert.IsNotNull(text, "Failed to serialize.");
+
+            if (logSerializedOutput)
+                Logger.LogMessage("{0}", text);
+
+            //  1  # This is the Full Typed Test.
+            //  2 
+            //  3  # Here is the global configuration.
+            //  4  GlobalConfig,ConversionTypePrefix,AAA
+            //  5  GlobalConfig,ConversionValuePrefix,BBB
+            //  6  GlobalConfig,PropertyPrefix,CCC
+            //  7  GlobalConfig,ReferenceIdColumnName,DDD
+            //  8  GlobalConfig,ReferenceNameColumnName,EEE
+            //  9  GlobalConfig,ValuesPrefix,FFF
+            // 10 
+            // 11  # Here is the type configuration.
+            // 12  TypedConfig,Foo,ConversionTypePrefix,aaa
+            // 13  TypedConfig,Foo,ConversionValuePrefix,bbb
+            // 14  TypedConfig,Foo,PropertyPrefix,ccc
+            // 15  TypedConfig,Foo,ReferenceIdColumnName,ddd
+            // 16  TypedConfig,Foo,ReferenceNameColumnName,eee
+            // 17  TypedConfig,Foo,ValuesPrefix,fff
+            // 18 
+            // 19  # Here are some type conversions.
+            // 20  ConversionTypePrefix,"Foo","Bar"
+            // 21 
+            // 22  # Here are some value conversions.
+            // 23  ConversionValuePrefix,"Foo","Bar"
+            // 24 
+            // 25  # Here is the Foo data preceeded by some metadata.
+            // 26  Metadata,Foo,"ABC",1
+            // 27  Metadata,Foo,"XYZ",99
+            // 28  Properties,Foo,Id,Name,Value
+            // 29  Values,Foo,1,"Fred","East"
+            // 30  Values,Foo,2,"Bert","West"
+
             Dictionary<string, string> checks = new()
             {
                 ["Opening comment"] = "# This is the Full Typed Test.",
@@ -502,9 +551,9 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 ["Foo data comment"] = "# Here is the Foo data preceeded by some metadata.",
                 ["Foo Metadata 'ABC'"] = "Metadata,Foo,\"ABC\",1",
                 ["Foo Metadata 'XYZ'"] = "Metadata,Foo,\"XYZ\",99",
-                ["Foo properties"] = "ccc,Foo,Id,Name,Value",
-                ["Foo value 1"] = "fff,Foo,1,\"Fred\",\"East\"",
-                ["Foo value 2"] = "fff,Foo,2,\"Bert\",\"West\"",
+                ["Foo properties"] = "Properties,Foo,Id,Name,Value",
+                ["Foo value 1"] = "Values,Foo,1,\"Fred\",\"East\"",
+                ["Foo value 2"] = "Values,Foo,2,\"Bert\",\"West\"",
             };
 
             var expectedLineCount =
@@ -525,17 +574,29 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 1 + // foo data comment
                 fooMetadata.Count +
                 1 + // foo properties
-                fooData.Count;
+                fooData.Count +
+                1; // trailing blank line;
             var expectedNumberOfCommentLines =
                 1 + // opening comment
                 1 + // global config comment
                 1 + // type config comment
                 1 + // type conversion comment
                 1 + // value conversion comment
-                1 + // foo data comment
-                0;
+                1;  // foo data comment
 
-            AssertResult(text, expectedLineCount, expectedNumberOfCommentLines, checks);
+            Assert.AreEqual(expectedLineCount, text.Split(Environment.NewLine).Length,
+                "Unexpected number of lines.");
+
+            Assert.AreEqual(expectedNumberOfCommentLines,
+                Regex.Matches(text, "(?:\r?\n){0,2}# ").Count,
+                "Unexpected number of comments.");
+
+            foreach (var check in checks)
+            {
+                var pattern = string.Format(PATTERN, check.Value);
+                Assert.IsTrue(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
+                    EXPECTED_MESSAGE, check.Key);
+            }
         }
 
         [TestMethod]
@@ -544,13 +605,9 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             // Arrange
             const string metadataPrefix = "Metadata";
             var metadataPropertyNames = new[] { "Name", "Number", };
+
             const string fooName = "Foo";
             var fooPropertyNames = new[] { "Id", "Name", "Value", };
-            var options =
-                new Options()
-                    .ForMetadata(metadataPrefix, allowNulls: true, metadataPropertyNames[0], metadataPropertyNames[1])
-                    .ForType(fooName, fooPropertyNames[0], fooPropertyNames[1..]);
-            var converter = new Converter(options);
 
             var openingComment = "This is the Full Typeless Test.";
             var globalConfigComment = "Here is the global configuration.";
@@ -589,36 +646,48 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 [metadataPropertyNames[0]] = "Harry",
                 [metadataPropertyNames[1]] = 77.ToString(),
             };
-            List<string[]> fooData = new()
+            List<string[]> fooValues = new()
             {
                 new [] { 1.ToString(), "Fred", "East", },
                 new [] { 2.ToString(), "Bert", "West", },
             };
+            Dictionary<string, (string[], IEnumerable<string[]>)> data = new()
+            {
+                [fooName] = (fooPropertyNames, fooValues),
+            };
+            var options =
+                new Options()
+                    .ForMetadata(metadataPrefix, allowNulls: true, metadataPropertyNames[0], metadataPropertyNames[1])
+                    .ForType(fooName, fooPropertyNames[0], fooPropertyNames[1..])
+                    .Serialize(serialize =>
+                        serialize
+                            .Comment("#", openingComment)
+                            .BlankLine()
+                            .Comment("#", globalConfigComment)
+                            .GlobalConfig(globalConfiguration)
+                            .BlankLine()
+                            .Comment("#", typeConfigComment)
+                            .TypeConfig<Foo>(fooTypeConfiguration)
+                            .BlankLine()
+                            .Comment("#", typeConversionComment)
+                            .TypeConversion(typeConversion)
+                            .BlankLine()
+                            .Comment("#", valueConversionComment)
+                            .ValueConversion(valueConversion)
+                            .BlankLine()
+                            .Comment("#", fooDataComment)
+                            .TypelessMetadata(fooName, metadataPrefix, fooMetadata));
+            var converter = new Converter(options);
 
             // Act
-            var text =
-                converter
-                    .Serialize()
-                    .Comment("#", openingComment)
-                    .BlankLine()
-                    .Comment("#", globalConfigComment)
-                    .GlobalConfig(globalConfiguration)
-                    .BlankLine()
-                    .Comment("#", typeConfigComment)
-                    .TypeConfig<Foo>(fooTypeConfiguration)
-                    .BlankLine()
-                    .Comment("#", typeConversionComment)
-                    .TypeConversion(typeConversion)
-                    .BlankLine()
-                    .Comment("#", valueConversionComment)
-                    .ValueConversion(valueConversion)
-                    .BlankLine()
-                    .Comment("#", fooDataComment)
-                    .TypelessMetadata(fooName, metadataPrefix, fooMetadata)
-                    .TypelessData(fooName, fooPropertyNames, fooData)
-                    .ToString();
+            var text = converter.Serialize(data);
 
             // Assert
+            Assert.IsNotNull(text, "Failed to serialize.");
+
+            if (logSerializedOutput)
+                Logger.LogMessage("{0}", text);
+
             Dictionary<string, string> checks = new()
             {
                 ["Opening comment"] = "# This is the Full Typeless Test.",
@@ -647,9 +716,9 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
 
                 ["Foo data comment"] = "# Here is the Foo data preceeded by some metadata.",
                 ["Foo Metadata 'Harry'"] = "Metadata,Foo,\"Harry\",\"77\"",
-                ["Foo properties"] = "ccc,Foo,Id,Name,Value",
-                ["Foo value 1"] = "fff,Foo,\"1\",\"Fred\",\"East\"",
-                ["Foo value 2"] = "fff,Foo,\"2\",\"Bert\",\"West\"",
+                ["Foo properties"] = "Properties,Foo,Id,Name,Value",
+                ["Foo value 1"] = "Values,Foo,\"1\",\"Fred\",\"East\"",
+                ["Foo value 2"] = "Values,Foo,\"2\",\"Bert\",\"West\"",
             };
 
             var expectedLineCount =
@@ -662,15 +731,16 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 fooTypeConfiguration.Count +
                 1 + // blank line
                 1 + // type conversion comment
-                typeConversion.Count +
+                typeConversion.Count + 
                 1 + // blank line
                 1 + // value conversion comment
-                valueConversion.Count +
+                valueConversion.Count + 
                 1 + // blank line
                 1 + // foo data comment
                 1 + // fooMetadata
                 1 + // foo properties
-                fooData.Count;
+                fooValues.Count + 
+                1;  // trailing blank line
             var expectedNumberOfCommentLines =
                 1 + // opening comment
                 1 + // global config comment
@@ -680,199 +750,11 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 1 + // foo data comment
                 0;
 
-            AssertResult(text, expectedLineCount, expectedNumberOfCommentLines, checks);
-        }
-
-        [TestMethod]
-        public void AttributeObjectDataFluentTest()
-        {
-            // Arrange
-            var options =
-                new Options()
-                    .ForType<AttrFoo>();
-            var converter = new Converter(options);
-
-            List<AttrFoo> data = new()
-            {
-                new AttrFoo{ Id = 1, Name = "Fred", Value = "East", },
-                new AttrFoo{ Id = 2, Name = "Bert", Value = "West", },
-            };
-
-            // Act
-            var text =
-                converter
-                    .Serialize()
-                    .Comment("#", "This is the Attribute Data Test.")
-                    .TypedData<AttrFoo>(data)
-                    .ToString();
-
-            // Assert
-            Dictionary<string, string> checks = new()
-            {
-                ["Opening comment"] = "# This is the Attribute Data Test.",
-
-				["Foo Properties"] = "Properties,FooObj,Identity,FullName,Val",
-				["Foo Values 1"] = "Values,FooObj,1,\"Fred\",\"East\"",
-				["Foo Values 2"] = "Values,FooObj,2,\"Bert\",\"West\"",
-            };
-
-            var expectedLineCount =
-                1 + // Opening comment
-                1 + // Data properties
-                data.Count;
-
-            var expectedNumberOfCommentLines = 1;
-
-            AssertResult(text, expectedLineCount, expectedNumberOfCommentLines, checks);
-        }
-
-        [TestMethod]
-        public void AttributeMetadataFluentTest()
-        {
-            // Arrange
-            var options =
-                new Options()
-                    .ForType<AttrFoo>()
-                    .ForMetadata<AttrMetadata>("MD", "Name", "Number");
-            var converter = new Converter(options);
-
-            List<AttrMetadata> metadata = new()
-            {
-                new AttrMetadata{ Name = "North", Number = 5, },
-            };
-
-            List<AttrFoo> data = new()
-            {
-                new AttrFoo{ Id = 1, Name = "Fred", Value = "East", },
-                new AttrFoo{ Id = 2, Name = "Bert", Value = "West", },
-            };
-
-            // Act
-            var text =
-                converter
-                    .Serialize()
-                    .TypedMetadata<AttrMetadata, AttrFoo>(metadata)
-                    .TypedData<AttrFoo>(data)
-                    .ToString();
-
-            // Assert
-            Dictionary<string, string> checks = new()
-            {
-                ["Foo metadata 1"] = "MD,FooObj,\"North\",5",
-                ["Foo Properties"] = "Properties,FooObj,Identity,FullName,Val",
-				["Foo Values 1"] = "Values,FooObj,1,\"Fred\",\"East\"",
-				["Foo Values 2"] = "Values,FooObj,2,\"Bert\",\"West\"",
-            };
-
-            AssertResult(text, checks.Count, 0, checks);
-        }
-
-        [TestMethod]
-        public void AttributeMetadataOptionsTest()
-        {
-            // Arrange
-            List<AttrMetadata> metadata = new()
-            {
-                new AttrMetadata{ Name = "North", Number = 5, },
-            };
-
-            List<AttrFoo> data = new()
-            {
-                new AttrFoo{ Id = 1, Name = "Fred", Value = "East", },
-                new AttrFoo{ Id = 2, Name = "Bert", Value = "West", },
-            };
-
-            var options =
-                new Options()
-                    .ForType<AttrFoo>()
-                    .ForMetadata<AttrMetadata>("MD", "Name", "Number")
-                    .Serialize(serialize =>
-                        serialize
-                            .TypedMetadata<AttrMetadata, AttrFoo>(metadata));
-            var converter = new Converter(options);
-
-            // Act
-            var text =
-                converter
-                    .Serialize()
-                    .TypedData<AttrFoo>(data)
-                    .ToString();
-
-            // Assert
-            Dictionary<string, string> checks = new()
-            {
-                ["Foo metadata 1"] = "MD,FooObj,\"North\",5",
-                ["Foo Properties"] = "Properties,FooObj,Identity,FullName,Val",
-				["Foo Values 1"] = "Values,FooObj,1,\"Fred\",\"East\"",
-				["Foo Values 2"] = "Values,FooObj,2,\"Bert\",\"West\"",
-            };
-
-            AssertResult(text, checks.Count, 0, checks);
-        }
-
-        [TestMethod]
-        public void ObjectDataWithMetadataAsAttributeTest()
-        {
-            // Arrange
-            List<Foo> data = new()
-            {
-                new Foo{ Id = 1, Name = "Fred", Value = "East", },
-                new Foo{ Id = 2, Name = "Bert", Value = "West", },
-            };
-
-            List<MetadataAttribute> metadata = new()
-            {
-                new MetadataAttribute{ Name = "XYZ", Number = 77, },
-            };
-            TypeDescriptor.AddAttributes(typeof(Foo), metadata.ToArray());
-
-            var options =
-                new Options()
-                    .ForType<Foo>()
-                    .ForMetadata<MetadataAttribute>("Metadata", "Name", "Number");
-            var converter = new Converter(options);
-
-            // Act
-            var text = 
-                converter
-                    .Serialize()
-                    .TypedData<Foo>(data)
-                    .ToString();
-
-            //Metadata,Foo,"XYZ",77
-            //Properties,Foo,Id,Name,Value
-            //Values,Foo,1,"Fred","East"
-            //Values,Foo,2,"Bert","West"
-
-            // Assert
-            Dictionary<string, string> checks = new()
-            {
-                ["Metadata"] = "Metadata,Foo,\"XYZ\",77",
-                ["Foo Properties"] = "Properties,Foo,Id,Name,Value",
-                ["Foo Values 1"] = "Values,Foo,1,\"Fred\",\"East\"",
-                ["Foo Values 2"] = "Values,Foo,2,\"Bert\",\"West\"",
-            };
-
-            AssertResult(text, checks.Count, 0, checks);
-        }
-
-        #region Support routines
-
-        private void AssertResult(string text, int lineCount, int commentCount, Dictionary<string, string> checks, Dictionary<string, string>? unwanted = null)
-        {
-            const string COMMENT_REGEX = "(?:\r?\n){0,2}# ";
-
-            Assert.IsNotNull(text, "Failed to serialize.");
-
-            if (logSerializedOutput)
-                Logger.LogMessage("{0}", text);
-
-            var lines = text.Split(Environment.NewLine);
-
-            Assert.AreEqual(lineCount, lines.Length,
+            Assert.AreEqual(expectedLineCount, text.Split(Environment.NewLine).Length,
                 "Unexpected number of lines.");
 
-            Assert.AreEqual(commentCount, Regex.Matches(text, COMMENT_REGEX).Count,
+            Assert.AreEqual(expectedNumberOfCommentLines,
+                Regex.Matches(text, "(?:\r?\n){0,2}# ").Count,
                 "Unexpected number of comments.");
 
             foreach (var check in checks)
@@ -881,21 +763,9 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 Assert.IsTrue(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
                     EXPECTED_MESSAGE, check.Key);
             }
-
-            if (unwanted is not null)
-            {
-                foreach (var check in unwanted)
-                {
-                    var pattern = string.Format(PATTERN, check.Value);
-                    Assert.IsFalse(Regex.IsMatch(text, pattern, RegexOptions.Multiline),
-                        UNWANTED_MESSAGE, check.Key);
-                }
-            }
         }
 
-        #endregion
-
-        #region Model
+        #region Test model
 
         private class Foo
         {
@@ -906,38 +776,7 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             public string? Value { get; set; }
         }
 
-        [CsvConverterClass("FooObj")]
-        private class AttrFoo
-        {
-            [CsvConverterProperty("Identity")]
-            public int Id { get; set; }
-
-            [CsvConverterProperty("FullName")]
-            public string? Name { get; set; }
-
-            [CsvConverterProperty("Val")]
-            public string? Value { get; set; }
-        }
-
         private class SomeMetadata
-        {
-            public string? Name { get; set; }
-
-            public int Number { get; set; }
-        }
-
-        [CsvConverterClass("MetaData")]
-        private class AttrMetadata
-        {
-            [CsvConverterProperty("FullName")]
-            public string? Name { get; set; }
-
-            [CsvConverterProperty("Num")]
-            public int Number { get; set; }
-        }
-
-        [AttributeUsage(AttributeTargets.Class)]
-        private class MetadataAttribute : Attribute
         {
             public string? Name { get; set; }
 

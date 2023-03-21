@@ -28,7 +28,7 @@ namespace Crowswood.CsvConverter
 
         protected OptionType() => this.Name = this.Type.Name;
 
-        protected OptionType(string name) : this() => this.Name = name;
+        protected OptionType(string name) => this.Name = name;
 
         #endregion
     }

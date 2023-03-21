@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.ComponentModel;
+using System.Reflection;
 using Crowswood.CsvConverter.Model;
 
 namespace Crowswood.CsvConverter.Extensions
@@ -8,6 +9,28 @@ namespace Crowswood.CsvConverter.Extensions
     /// </summary>
     public static class TypeExtensions
     {
+        /// <summary>
+        /// Gets the Attributes that the <paramref name="type"/> has defined.
+        /// </summary>
+        /// <param name="type">A <see cref="Type"/>.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="Attribute"/>.</returns>
+        public static IEnumerable<Attribute> GetAttributes(this Type type)
+        {
+            var attributes = TypeDescriptor.GetAttributes(type);
+            foreach (Attribute attribute in attributes)
+                yield return attribute;
+        }
+
+        /// <summary>
+        /// Gets the types of the <paramref name="attributes"/>.
+        /// </summary>
+        /// <param name="attributes">An <see cref="IEnumerable{T}"/> of <see cref="Attribute"/>.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="Type"/>.</returns>
+        public static IEnumerable<Type> GetAttributeTypes(this IEnumerable<Attribute> attributes) =>
+            attributes
+                .Select(attribute => attribute.GetType())
+                .Distinct();
+
         /// <summary>
         /// Extension method to determine and return the depth of the <see cref="Type"/> in the
         /// hierarchy.
@@ -58,6 +81,15 @@ namespace Crowswood.CsvConverter.Extensions
         public static IEnumerable<PropertyAndAttributePair> GetPropertyAndAttributePairs(this Type type) =>
             type.GetProperties(BindingFlags.Instance |
                                BindingFlags.Public)
+                .Select(property => new PropertyAndAttributePair(property));
+
+        /// <summary>
+        /// Retrieves the <see cref="PropertyAndAttributePair"/> objects for the <paramref name="properties"/>.
+        /// </summary>
+        /// <param name="properties">A <see cref="PropertyInfo[]"/>.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="PropertyAndAttributePair"/> objects.</returns>
+        public static IEnumerable<PropertyAndAttributePair> GetPropertyAndAttributePairs(this PropertyInfo[] properties) =>
+            properties
                 .Select(property => new PropertyAndAttributePair(property));
 
         /// <summary>
