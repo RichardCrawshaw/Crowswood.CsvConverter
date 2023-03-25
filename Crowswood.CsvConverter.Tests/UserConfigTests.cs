@@ -1,4 +1,5 @@
-﻿using Crowswood.CsvConverter.Handlers;
+﻿using Crowswood.CsvConverter.Extensions;
+using Crowswood.CsvConverter.Handlers;
 
 namespace Crowswood.CsvConverter.Tests
 {
@@ -45,11 +46,11 @@ TypedConfig,TypeName,ExampleName,ExampleValue2
             Assert.AreEqual(1, handler.GlobalConfig.Length, "Unexpected number of global config items.");
             Assert.AreEqual(1, handler.TypedConfig.Length, "Unexpected number of typed config items.");
 
-            var globalConfig = handler.GetGlobal(name: "ExampleName");
+            var globalConfig = handler.GlobalConfig.GetGlobal(name: "ExampleName");
             Assert.IsNotNull(globalConfig, "Failed to find expected global config item.");
             Assert.AreEqual("ExampleValue", globalConfig.Value, "Unexpected global config value.");
 
-            var typedConfigs = handler.GetTyped(name: "ExampleName");
+            var typedConfigs = handler.TypedConfig.GetTyped(name: "ExampleName");
             Assert.IsNotNull(typedConfigs, "Failed to find expected typed config items.");
             Assert.AreEqual(1, typedConfigs.Count(), "Unexpected number of typed config items retrieved.");
 
@@ -57,7 +58,7 @@ TypedConfig,TypeName,ExampleName,ExampleValue2
             Assert.IsNotNull(typedConfig1, "Failed to find expected typed config item.");
             Assert.AreEqual("ExampleValue2", typedConfig1.Value, "Unexpected typed config value (method 1).");
 
-            var typedConfig2 = handler.GetTyped(typeName: "TypeName", name: "ExampleName");
+            var typedConfig2 = handler.TypedConfig.GetTyped(typeName: "TypeName", name: "ExampleName");
             Assert.IsNotNull(typedConfig2, "Failed to get expected typed config item for type.");
             Assert.AreEqual("ExampleValue2", typedConfig2.Value, "Unexpected typed config value (method 2).");
         }

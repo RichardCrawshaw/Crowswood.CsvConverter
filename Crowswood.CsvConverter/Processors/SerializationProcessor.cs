@@ -36,14 +36,20 @@ namespace Crowswood.CsvConverter.Processors
         {
             var lines = new List<string>();
 
-            var types = this.options.OptionTypes.Any()
-                ? this.options.OptionTypes.Select(optionType => optionType.Type)
-                : values.Select(value => value.GetType()).Distinct();
+            lines.AddRange(this.options.OptionSerialize.ToArray());
+
+            var types = this.options.OptionTypes.Any(ot => ot.Type != typeof(Type))
+                ? this.options.OptionTypes
+                    .Where(ot => ot.Type != typeof(Type))
+                    .Select(optionType => optionType.Type)
+                : values
+                    .Select(value => value.GetType())
+                    .Distinct();
 
             foreach (var type in types)
             {
                 lines.AddRange(ConvertFrom(type, values));
-                lines.Add(Environment.NewLine);
+                lines.Add(string.Empty);
             }
 
             var text = string.Join(Environment.NewLine, lines);
@@ -58,8 +64,12 @@ namespace Crowswood.CsvConverter.Processors
         internal string Process(Dictionary<string, (string[], IEnumerable<string[]>)> data)
         {
             var lines =
+                this.options.OptionSerialize
+                    .ToArray()
+                    .ToList();
+            lines.AddRange(
                 data.Select(kvp => Process(kvp.Key, kvp.Value.Item1, kvp.Value.Item2))
-                    .SelectMany(item => item);
+                    .SelectMany(item => item));
 
             var text = string.Join(Environment.NewLine, lines);
             return text;
@@ -199,7 +209,7 @@ namespace Crowswood.CsvConverter.Processors
                                                                     values)));
 
             // Add a blank line to separate the block of data for this type from any others.
-            results.Add(Environment.NewLine);
+            results.Add(string.Empty);
 
             return results;
         }

@@ -1,5 +1,4 @@
-﻿using Crowswood.CsvConverter.Extensions;
-using Crowswood.CsvConverter.Helpers;
+﻿using Crowswood.CsvConverter.Helpers;
 using Crowswood.CsvConverter.UserConfig;
 
 namespace Crowswood.CsvConverter.Handlers
@@ -105,47 +104,15 @@ namespace Crowswood.CsvConverter.Handlers
         /// Gets the conversion type prefix.
         /// </summary>
         /// <returns>A <see cref="string"/> containing the prefix.</returns>
-        internal string GetConversionTypePrefix() => 
-            GetGlobal(Configurations.ConversionTypePrefix)?.Value ??
-            this.options.ConversionTypePrefix;
+        internal string GetConversionTypePrefix() =>
+            ConfigHelper.GetConversionTypePrefix(this.globalConfig, this.options);
 
         /// <summary>
         /// Gets the conversion value prefix.
         /// </summary>
         /// <returns>A <see cref="string"/> containing the prefix.</returns>
         internal string GetConversionValuePrefix() =>
-            GetGlobal(Configurations.ConversionValuePrefix)?.Value ??
-            this.options.ConversionValuePrefix;
-
-        /// <summary>
-        /// Gets the <see cref="GlobalConfig"/> item that has the specified <paramref name="name"/>, 
-        /// or null if there is no match.
-        /// </summary>
-        /// <param name="name">A <see cref="string"/> that contains the name of a configuration item.</param>
-        /// <returns>A <see cref="GlobalConfig"/> or null.</returns>
-        public GlobalConfig? GetGlobal(string name) =>
-            this.globalConfig
-                .FirstOrDefault(config => config.Name == name);
-
-        /// <summary>
-        /// Gets all the <see cref="TypedConfig"/> items that have the specified <paramref name="name"/>.
-        /// </summary>
-        /// <param name="name">A <see cref="string"/> that contains the name of a configuration item.</param>
-        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="GlobalConfig"/>.</returns>
-        public IEnumerable<TypedConfig> GetTyped(string name) =>
-            this.typedConfig
-                .Where(config => config.Name == name);
-
-        /// <summary>
-        /// Gets the <see cref="TypedConfig"/> item that has the specified <paramref name="typeName"/> 
-        /// and <paramref name="name"/>, or null if there is no match.
-        /// </summary>
-        /// <param name="typeName">A <see cref="string"/> that contains the name of a data-type.</param>
-        /// <param name="name">A <see cref="string"/> that contains the name of a configuration item.</param>
-        /// <returns>A <see cref="TypedConfig"/> or null.</returns>
-        public TypedConfig? GetTyped(string typeName, string name)=>
-            this.typedConfig
-                .FirstOrDefault(config=> config.TypeName == typeName && config.Name == name);
+            ConfigHelper.GetConversionValuePrefix(this.globalConfig, this.options);
 
         /// <summary>
         /// Gets the property prefix for the specified <paramref name="typeName"/>.
@@ -153,25 +120,14 @@ namespace Crowswood.CsvConverter.Handlers
         /// <param name="typeName">A <see cref="string"/> containing the name of the type.</param>
         /// <returns>A <see cref="string"/> containing the prefix.</returns>
         public string GetPropertyPrefix(string typeName) =>
-            GetTyped(typeName, Configurations.PropertyPrefix)?.Value ??
-            GetGlobal(Configurations.PropertyPrefix)?.Value ??
-            this.options.PropertyPrefix; // GetPropertyPrefix
+            ConfigHelper.GetPropertyPrefix(this.globalConfig, this.typedConfig, this.options, typeName);
 
         /// <summary>
         /// Gets all the property prefixes.
         /// </summary>
         /// <returns>A <see cref="string[]"/> containing the prefixes.</returns>
         public string[] GetPropertyPrefixes() =>
-            new List<string?>(
-                GetTyped(Configurations.PropertyPrefix)
-                    .Select(config => config.Value))
-            {
-                GetGlobal(Configurations.PropertyPrefix)?.Value,
-                this.options.PropertyPrefix, // GetPropertyPrefixes
-
-            }.NotNull()
-            .Distinct()
-            .ToArray();
+            ConfigHelper.GetPropertyPrefixes(this.globalConfig, this.typedConfig, this.options);
 
         /// <summary>
         /// Gets the name of the id column for the specified <paramref name="typeName"/>.
@@ -179,11 +135,7 @@ namespace Crowswood.CsvConverter.Handlers
         /// <param name="typeName">A <see cref="string"/> that contains the name of the data type being referenced.</param>
         /// <returns>A <see cref="string"/> containing the name of the id column.</returns>
         public string GetReferenceIdColumnName(string typeName) =>
-            GetTyped(typeName, Configurations.ReferenceIdColumnName)?.Value ??
-            GetGlobal(Configurations.ReferenceIdColumnName)?.Value ??
-            this.options.OptionsReferences.Get(typeName)?.IdPropertyName ??
-            this.options.OptionsReferences.Get()?.IdPropertyName ??
-            Configurations.DefaultIdColumnName;
+            ConfigHelper.GetReferenceIdColumnName(this.globalConfig, this.typedConfig, this.options, typeName);
 
         /// <summary>
         /// Gets the name of the name column for the specified <paramref name="typeName"/>.
@@ -191,11 +143,7 @@ namespace Crowswood.CsvConverter.Handlers
         /// <param name="typeName">A <see cref="string"/> that contains the name of the data type being referenced.</param>
         /// <returns>A <see cref="string"/> containing the name of the name column.</returns>
         public string GetReferenceNameColumnName(string typeName) =>
-            GetTyped(typeName, Configurations.ReferenceNameColumnName)?.Value ??
-            GetGlobal(Configurations.ReferenceNameColumnName)?.Value ??
-            this.options.OptionsReferences.Get(typeName)?.NamePropertyName ??
-            this.options.OptionsReferences.Get()?.NamePropertyName ??
-            Configurations.DefaultNameColumnName;
+            ConfigHelper.GetReferenceNameColumnName(this.globalConfig, this.typedConfig, this.options, typeName);
 
         /// <summary>
         /// Gets the value prefix for the specified <paramref name="typeName"/>.
@@ -203,23 +151,14 @@ namespace Crowswood.CsvConverter.Handlers
         /// <param name="typeName">A <see cref="string"/> containing the name of the type.</param>
         /// <returns>A <see cref="string"/> containing the prefix.</returns>
         public string GetValuePrefix(string typeName) =>
-            GetTyped(typeName, Configurations.ValuesPrefix)?.Value ??
-            GetGlobal(Configurations.ValuesPrefix)?.Value ??
-            this.options.ValuesPrefix;
+            ConfigHelper.GetValuePrefix(this.globalConfig, this.typedConfig, this.options, typeName);
 
         /// <summary>
         /// Gets all the value prefixes.
         /// </summary>
         /// <returns>A <see cref="string[]"/> containing the prefixes.</returns>
         public string[] GetValuePrefixes() =>
-            new List<string?>(
-                GetTyped(Configurations.ValuesPrefix)
-                    .Select(config => config.Value))
-            {
-                GetGlobal(Configurations.ValuesPrefix)?.Value,
-                this.options.ValuesPrefix,
-            }.NotNull()
-            .ToArray();
+            ConfigHelper.GetValuePrefixes(this.globalConfig, this.typedConfig, this.options);
 
         #endregion
     }

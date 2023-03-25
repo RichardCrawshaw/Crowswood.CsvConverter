@@ -206,7 +206,7 @@ namespace Crowswood.CsvConverter
         /// typed and typeless metadata, typed and typeless data, and comments.
         /// </summary>
         /// <returns>An <see cref="ISerialization"/> object.</returns>
-        public ISerialization Serialize() => new Serialization(this, this.options);
+        public ISerialization Serialize() => new Serialization(this.options);
 
         #endregion
 

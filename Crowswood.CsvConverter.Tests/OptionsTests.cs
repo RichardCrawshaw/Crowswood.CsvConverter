@@ -1,4 +1,8 @@
-﻿namespace Crowswood.CsvConverter.Tests
+﻿using System.Text.RegularExpressions;
+using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
+using NuGet.Frameworks;
+
+namespace Crowswood.CsvConverter.Tests
 {
     [TestClass]
     public class OptionsTests
@@ -165,6 +169,127 @@
             ReferenceTestBody<OptionReferenceType<OptionsBar>>("OptionsBar", options, 2, "OptionsBar", "ID", "AnotherName");
         }
 
+        [TestMethod]
+        public void SerializationTest()
+        {
+            // Act
+            var options =
+                new Options()
+                    .ForMetadata<Metadata>("Metadata", "Id", "Name")
+                    .ForMetadata("Simple", true, "Id", "Direction")
+                    .Serialize(serialize =>
+                        serialize
+                            .GlobalConfig(Converter.Keys.GlobalConfig.PropertyPrefix, "B")
+                            .GlobalConfig(new Dictionary<string, string>
+                            {
+                                [Converter.Keys.GlobalConfig.ConversionTypePrefix] = "D",
+                                [Converter.Keys.GlobalConfig.ConversionValuePrefix] = "F",
+                            })
+                            .TypeConfig<Foo>(Converter.Keys.TypedConfig.ConversionTypePrefix, "Y")
+                            .TypeConfig(typeof(Foo), Converter.Keys.TypedConfig.ConversionValuePrefix, "P")
+                            .TypeConfig("Foo", Converter.Keys.TypedConfig.PropertyPrefix, "N")
+                            .TypeConfig<Foo>(new Dictionary<string, string>
+                            {
+                                [Converter.Keys.TypedConfig.ReferenceIdColumnName] = "H",
+                            })
+                            .TypeConfig(typeof(Foo), new Dictionary<string, string>
+                            {
+                                [Converter.Keys.TypedConfig.ReferenceNameColumnName] = "J",
+                            })
+                            .TypeConfig("Foo", new Dictionary<string, string>
+                            {
+                                [Converter.Keys.TypedConfig.ValuesPrefix] = "S",
+                            })
+                            .TypeConversion(new Dictionary<string, string>
+                            {
+                                ["aaa"] = "BBB",
+                                ["ccc"] = "DDD",
+                            })
+                            .ValueConversion(new Dictionary<string, string>
+                            {
+                                ["ZZZ"] = "yyy",
+                                ["XXX"] = "www,"
+                            })
+                            .TypedMetadata<Metadata, Foo>(new List<Metadata>
+                            {
+                                new Metadata{ Id = 1, Name = "Fred", },
+                            })
+                            .TypedMetadata<Metadata, Bar>(new List<Metadata>
+                            {
+                                new Metadata { Id = 2, Name = "Bert", },
+                            })
+                            .TypelessMetadata<Foo>("Simple", new Dictionary<string, string>
+                            {
+                                ["Id"] = 2.ToString(),
+                                ["Direction"] = "North",
+                            })
+                            .TypelessMetadata<Bar>("Simple", new Dictionary<string, string>
+                            {
+                                ["Id"] = 4.ToString(),
+                                ["Direction"] = "South",
+                            }))
+                    .SetPrefixes("AAA", "BBB");
+
+            // Assert
+            Assert.IsNotNull(options.OptionSerialize, "Failed to generate serialization options object.");
+
+            var array = options.OptionSerialize.ToArray();
+            Assert.IsNotNull(array, "Failed to retrieve value from serialization options object.");
+
+            const string PATTERN = "^{0}\r?$";
+            Dictionary<string, string> expected = new()
+            {
+                ["GlobalConfig PropertyPrefix"] = "GlobalConfig,PropertyPrefix,B",
+                ["GlobalConfig ConversionTypePrefix"] = "GlobalConfig,ConversionTypePrefix,D",
+                ["GlobalConfig ConversionValuePrefix"] = "GlobalConfig,ConversionValuePrefix,F",
+                ["TypedConfig ConversionTypePrefix"] = "TypedConfig,Foo,ConversionTypePrefix,Y",
+                ["TypedConfig ConversionValuePrefix"] = "TypedConfig,Foo,ConversionValuePrefix,P",
+                ["TypedConfig PropertyPrefix"] = "TypedConfig,Foo,PropertyPrefix,N",
+                ["TypedConfig ReferenceIdColumnName"] = "TypedConfig,Foo,ReferenceIdColumnName,H",
+                ["TypedConfig ReferenceNameColumnName"] = "TypedConfig,Foo,ReferenceNameColumnName,J",
+                ["TypedConfig ValuesPrefix"] = "TypedConfig,Foo,ValuesPrefix,S",
+                ["Type Conversion aaa -> BBB"] = "ConversionTypePrefix,\"aaa\",\"BBB\"",
+                ["Type Conversion ccc -> DDD"] = "ConversionTypePrefix,\"ccc\",\"DDD\"",
+                ["Value Conversion ZZZ -> yyy"] = "ConversionValuePrefix,\"ZZZ\",\"yyy\"",
+                ["Value Conversion XXX -> www"] = "ConversionValuePrefix,\"XXX\",\"www,\"",
+                ["Metadata for Foo 1"] = "Metadata,Foo,1,\"Fred\"",
+                ["Metadata for Bar 2"] = "Metadata,Bar,2,\"Bert\"",
+                ["Simple for Foo 2"] = "Simple,Foo,\"2\",\"North\"",
+                ["Simple for Bar 4"] = "Simple,Bar,\"4\",\"South\"",
+            };
+
+            Assert.AreEqual(expected.Count, array.Length, "Unexpected number of lines.");
+
+            var text = string.Join(Environment.NewLine, array);
+
+            Logger.LogMessage("{0}", text);
+
+            //GlobalConfig,PropertyPrefix,B
+            //GlobalConfig,ConversionTypePrefix,D
+            //GlobalConfig,ConversionValuePrefix,F
+            //TypedConfig,Foo,ConversionTypePrefix,Y
+            //TypedConfig,Foo,ConversionValuePrefix,P
+            //TypedConfig,Foo,PropertyPrefix,N
+            //TypedConfig,Foo,ReferenceIdColumnName,H
+            //TypedConfig,Foo,ReferenceNameColumnName,J
+            //TypedConfig,Foo,ValuesPrefix,S
+            //ConversionTypePrefix,"aaa","BBB"
+            //ConversionTypePrefix,"ccc","DDD"
+            //ConversionValuePrefix,"ZZZ","yyy"
+            //ConversionValuePrefix,"XXX","www,"
+            //Metadata,Foo,1,"Fred"
+            //Metadata,Bar,2,"Bert"
+            //Simple,Foo,"2","North"
+            //Simple,Bar,"4","South"
+
+            const string MESSAGE = "Failed to find '{0}'.";
+            foreach(var kvp in expected)
+            { 
+                var pattern = string.Format(PATTERN, kvp.Value);
+                Assert.IsTrue(Regex.IsMatch(text, pattern, RegexOptions.Multiline), MESSAGE, kvp.Key);
+            }
+        }
+
         #region Support routines
 
         private static void ReferenceTestBody<T>(string name, Options options, int index, string? typeName, string idProperty, string nameProperty)
@@ -189,12 +314,30 @@
 
         #region Test model
 
+        private class Foo
+        {
+            public int Id { get; set; }
+            public string? Name { get; set; }
+        }
+
+        private class Bar
+        {
+            public int Id { get; set; }
+            public string? Value { get; set; }
+        }
+
         private class OptionsFoo
         {
             public int Id { get; set; }
         }
 
         private class OptionsBar { }
+
+        private class Metadata
+        {
+            public int Id { get; set; }
+            public string? Name { get; set; }
+        }
 
         #endregion
     }

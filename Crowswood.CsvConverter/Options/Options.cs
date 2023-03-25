@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using Crowswood.CsvConverter.Interfaces;
 
 namespace Crowswood.CsvConverter
 {
@@ -54,6 +55,11 @@ namespace Crowswood.CsvConverter
         internal OptionReference[] OptionsReferences => this.optionsReferences.ToArray();
 
         /// <summary>
+        /// Gets the serialization options.
+        /// </summary>
+        internal IOptionSerialization OptionSerialize { get; }
+
+        /// <summary>
         /// Gets the <see cref="OptionType"/> instances assigned to the curent <see cref="Options"/>
         /// instance.
         /// </summary>
@@ -102,7 +108,7 @@ namespace Crowswood.CsvConverter
         /// <summary>
         /// Creates a new <see cref="Options"/> instance.
         /// </summary>
-        public Options() { }
+        public Options() => this.OptionSerialize = new Serialization(this);
 
         #endregion
 
@@ -128,6 +134,7 @@ namespace Crowswood.CsvConverter
 
             return this;
         }
+
 
         /// <summary>
         /// Adds the specified <paramref name="optionMember"/>.
@@ -201,6 +208,23 @@ namespace Crowswood.CsvConverter
         /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
         public Options ForReferences<T>(string idPropertyName, string namePropertyName)=>
             AddReference(new OptionReferenceType<T>(idPropertyName, namePropertyName));
+
+
+        /// <summary>
+        /// Allows the addition of <see cref="IOptionSerialization"/> options.
+        /// </summary>
+        /// <param name="func">A <see cref="Func{T, TResult}"/> that takes and returns a <see cref="IOptionSerialization"/> object.</param>
+        /// <returns>The <see cref="Options"/> object to allow calls to be chained.</returns>
+        /// <remarks>
+        /// Use a lambda in the form 
+        /// <code>serialise => serialise.Method(...)</code>
+        /// Methods can be chained in the fluent style.
+        /// </remarks>
+        public Options Serialize(Func<IOptionSerialization, IOptionSerialization> func)
+        {
+            func(this.OptionSerialize);
+            return this;
+        }
 
 
         /// <summary>

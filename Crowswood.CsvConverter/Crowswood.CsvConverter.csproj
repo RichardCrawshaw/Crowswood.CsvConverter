@@ -47,6 +47,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Options\_OptionSerialize.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="Options\Options.cs~RF10c8ef71.TMP" />
     <None Remove="Serialization.cs~RFbb9b9a6.TMP" />
   </ItemGroup>

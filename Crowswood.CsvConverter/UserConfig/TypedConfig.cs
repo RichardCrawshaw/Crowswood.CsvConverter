@@ -1,6 +1,9 @@
-﻿namespace Crowswood.CsvConverter.UserConfig
+﻿using Crowswood.CsvConverter.Interfaces;
+
+namespace Crowswood.CsvConverter.UserConfig
 {
-    internal sealed class TypedConfig : BaseConfig
+    internal sealed class TypedConfig : BaseConfig,
+        ITypedConfig
     {
         public string TypeName { get; }
 
