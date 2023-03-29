@@ -1,13 +1,12 @@
 ﻿using System.Reflection;
 using Crowswood.CsvConverter.Extensions;
-using Crowswood.CsvConverter.Helpers;
 
 namespace Crowswood.CsvConverter.Serializations
 {
     /// <summary>
     /// An abstact class that provides the base class for the generic typed metadata variants.
     /// </summary>
-    internal abstract class TypedMetadataData : BaseMetadataData
+    internal abstract class TypedMetadataData : SingleMetadataData
     {
         /// <summary>
         /// Gets the type of metadata that the current instance serializes.
@@ -106,33 +105,11 @@ namespace Crowswood.CsvConverter.Serializations
             : base(factory, dataTypeName) => this.metadata = metadata;
 
         /// <inheritdoc/>
-        public override string[] Serialize()
-        {
-            var metadataType = typeof(TMetadata);
-            var optionMetadata =
-                this.prefixFactory.Options.GetOptionMetadata(metadataType) ??
+        public override string[] Serialize() =>
+            Serialize(
+                this.factory.Options.GetOptionMetadata(this.MetadataType) ??
                 throw new InvalidOperationException(
-                    $"No Metadata definition in Options for '{metadataType.Name}'.");
-
-            var properties = GetProperties<TMetadata>(optionMetadata.PropertyNames);
-            var result =
-                Serialize(
-                    optionMetadata.Prefix, 
-                    GetProperties(properties, optionMetadata.PropertyNames));
-            return result;
-        }
-
-        /// <summary>
-        /// Serializes the <seealso cref="metadata"/> using the specified <paramref name="properties"/>.
-        /// </summary>
-        /// <param name="properties">A <see cref="PropertyInfo[]"/>.</param>
-        /// <returns>A <see cref="string[]"/>.</returns>
-        private string[] Serialize(string metadataPrefix, PropertyInfo[] properties) =>
-            this.metadata
-                .Select(metadata => ConverterHelper.AsStrings(metadata, properties).ToArray())
-                .Where(values => values.Any())
-                .Select(values => values.AsCsv(metadataPrefix, this.dataTypeName))
-                .ToArray();
+                    $"No Metadata definition in Options for '{this.MetadataTypeName}'."));
 
         /// <summary>
         /// Gets the <see cref="PropertyInfo"/> from <typeparamref name="T"/> that exist in the 
@@ -143,19 +120,6 @@ namespace Crowswood.CsvConverter.Serializations
         /// <returns>A <see cref="PropertyInfo[]"/>.</returns>
         private static PropertyInfo[] GetProperties<T>(string[] propertyNames) => 
             GetProperties(typeof(T), propertyNames);
-
-        /// <summary>
-        /// Gets the <see cref="PropertyInfo"/> from the specified <paramref name="type"/> that 
-        /// exist in the specified <paramref name="propertyNames"/>.
-        /// </summary>
-        /// <param name="type">The <see cref="MetadataType"/> to get the properties of.</param>
-        /// <param name="propertyNames">A <see cref="string[]"/> containing the property names.</param>
-        /// <returns>A <see cref="PropertyInfo[]"/>.</returns>
-        private static PropertyInfo[] GetProperties(Type type, string[] propertyNames) =>
-            type.GetProperties(BindingFlags.Instance | BindingFlags.Public)
-                .Where(property => property.CanRead && property.CanWrite)
-                .Where(property => propertyNames?.Contains(property.Name) ?? false)
-                .ToArray();
 
         /// <summary>
         /// Gets the <see cref="PropertyInfo"/> from the specified <paramref name="properties"/> 
@@ -175,5 +139,25 @@ namespace Crowswood.CsvConverter.Serializations
                         .FirstOrDefault(property => property.Name == propertyName))
                 .NotNull()
                 .ToArray();
+
+        /// <summary>
+        /// Serializes the <seealso cref="metadata"/> using the specified <paramref name="optionMetadata"/> 
+        /// </summary>
+        /// <param name="optionMetadata"></param>
+        /// <returns>A <see cref="string[]"/>.</returns>
+        private string[] Serialize(OptionMetadata optionMetadata) =>
+            Serialize(optionMetadata, GetProperties<TMetadata>(optionMetadata.PropertyNames));
+
+        /// <summary>
+        /// Serializes the <seealso cref="metadata"/> using the specified <paramref name="optionMetadata"/> 
+        /// and <paramref name="properties"/>.
+        /// </summary>
+        /// <param name="optionMetadata"></param>
+        /// <param name="properties">A <see cref="PropertyInfo[]"/>.</param>
+        /// <returns>A <see cref="string[]"/>.</returns>
+        private string[] Serialize(OptionMetadata optionMetadata, PropertyInfo[] properties) =>
+            Serialize(this.metadata,
+                      optionMetadata.Prefix,
+                      GetProperties(properties, optionMetadata.PropertyNames));
     }
 }

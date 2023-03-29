@@ -5,7 +5,7 @@ namespace Crowswood.CsvConverter.Serializations
     /// <summary>
     /// A sealed class for serializing typeless metadata.
     /// </summary>
-    internal sealed class TypelessMetadataData : BaseMetadataData
+    internal sealed class TypelessMetadataData : SingleMetadataData
     {
         private readonly string metadataPrefix;
         private readonly Dictionary<string, string> metadata;
@@ -23,7 +23,7 @@ namespace Crowswood.CsvConverter.Serializations
         public override string[] Serialize()
         {
             var optionMetadata =
-                this.prefixFactory.Options.GetOptionMetadata(metadataPrefix) ??
+                this.factory.Options.GetOptionMetadata(metadataPrefix) ??
                 throw new InvalidOperationException(
                     $"No Metadata definition in Options for a prefix of '{metadataPrefix}'.");
 
