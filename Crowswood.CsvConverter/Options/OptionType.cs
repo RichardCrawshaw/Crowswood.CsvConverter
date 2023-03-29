@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace Crowswood.CsvConverter
+﻿namespace Crowswood.CsvConverter
 {
     /// <summary>
     /// An abstract base class that allows a type to be added to an <see cref="options"/>

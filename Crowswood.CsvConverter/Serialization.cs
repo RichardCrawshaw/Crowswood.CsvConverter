@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Crowswood.CsvConverter.Extensions;
+﻿using Crowswood.CsvConverter.Extensions;
 using Crowswood.CsvConverter.Helpers;
 using Crowswood.CsvConverter.Interfaces;
 using Crowswood.CsvConverter.Serializations;
@@ -252,7 +251,7 @@ namespace Crowswood.CsvConverter
             where TObject : class => TypedMetadata<TMetadata>(GetTypeName<TObject>(), metadata);
 
         private Serialization TypedMetadata<TMetadata>(Type dataType, IEnumerable<TMetadata> metadata) 
-            where TMetadata : class => TypedMetadata<TMetadata>(GetTypeName(dataType), metadata);
+            where TMetadata : class => TypedMetadata<TMetadata>(dataType.GetTypeName(), metadata);
 
         private Serialization TypedMetadata<TMetadata>(string dataTypeName, IEnumerable<TMetadata> metadata)
             where TMetadata : class => Add(new TypedMetadataData<TMetadata>(new SerializationFactory(this), dataTypeName, metadata));
@@ -261,7 +260,7 @@ namespace Crowswood.CsvConverter
             where TObject : class => TypelessMetadata(GetTypeName<TObject>(), metadataPrefix, metadata);
 
         private Serialization TypelessMetadata(Type dataType, string metadataPrefix, Dictionary<string, string> metadata) =>
-            TypelessMetadata(GetTypeName(dataType), metadataPrefix, metadata);
+            TypelessMetadata(dataType.GetTypeName(), metadataPrefix, metadata);
 
         private Serialization TypelessMetadata(string dataTypeName, string metadataPrefix, Dictionary<string, string> metadata) =>
             Add(new TypelessMetadataData(new SerializationFactory(this), dataTypeName, metadataPrefix, metadata));
@@ -299,17 +298,7 @@ namespace Crowswood.CsvConverter
         /// </summary>
         /// <typeparam name="T">The type of object.</typeparam>
         /// <returns>A <see cref="string"/>.</returns>
-        private static string GetTypeName<T>() => GetTypeName(typeof(T));
-
-        /// <summary>
-        /// Gets the type name from either the specified <paramref name="type"/> or its 
-        /// <see cref="CsvConverterClassAttribute"/> if any.
-        /// </summary>
-        /// <param name="type">A <see cref="Type"/>.</param>
-        /// <returns>A <see cref="string"/>.</returns>
-        private static string GetTypeName(Type type) =>
-            type.GetCustomAttribute<CsvConverterClassAttribute>()?.Name ??
-            type.Name;
+        private static string GetTypeName<T>() => typeof(T).GetTypeName();
 
         /// <summary>
         /// Serialize the <seealso cref="serializations"/> preceeded by the specified <paramref name="preceedingData"/> 

@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Crowswood.CsvConverter.Extensions;
+﻿using Crowswood.CsvConverter.Extensions;
 using Crowswood.CsvConverter.Handlers;
 using Crowswood.CsvConverter.Interfaces;
 using Crowswood.CsvConverter.UserConfig;
@@ -61,8 +60,7 @@ namespace Crowswood.CsvConverter.Helpers
         /// <param name="type">A <see cref="Type"/>.</param>
         /// <returns>A <see cref="string[]"/>.</returns>
         public static string[] GetValidConfigKeys(Type type) =>
-            type.GetFields(BindingFlags.Public | BindingFlags.Static)
-                .Where(field => field.FieldType == typeof(string))
+            type.GetStaticStringFields()
                 .Select(field => field.GetValue(null))
                 .Cast<string>()
                 .ToArray();

@@ -29,7 +29,7 @@ namespace Crowswood.CsvConverter.Serializations
 
             var result = 
                 GetValues(this.metadata, optionMetadata.PropertyNames)
-                    .AsCsv(optionMetadata.Prefix, this.dataTypeName);
+                    .AsCsv(optionMetadata.Prefix, this.ObjectDataTypeName);
 
             return new[] { result, };
         }

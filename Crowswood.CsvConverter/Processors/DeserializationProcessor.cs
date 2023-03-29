@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Crowswood.CsvConverter.Extensions;
+﻿using Crowswood.CsvConverter.Extensions;
 using Crowswood.CsvConverter.Handlers;
 using Crowswood.CsvConverter.Helpers;
 using Crowswood.CsvConverter.Model;
@@ -148,12 +147,8 @@ namespace Crowswood.CsvConverter.Processors
         private IEnumerable<TBase> ConvertTo<TBase>(string typeName, (string[], IEnumerable<string[]>) data)
             where TBase : class
         {
-            var types =
-                Assembly.GetAssembly(typeof(TBase))?.GetTypes()
-                    .Where(type => type.Name == typeName)
-                    .Where(type => type.IsAssignableTo(typeof(TBase)))
-                    .ToList() ?? new List<Type>();
-            if (types.Count > 1)
+            var types = typeof(TBase).GetType(typeName);
+            if (types.Length > 1)
                 throw new InvalidOperationException(
                     $"Unable to identify exactly one type called '{typeName}' from the assembly containing '{typeof(TBase).Name}'.");
             var type =
@@ -231,9 +226,7 @@ namespace Crowswood.CsvConverter.Processors
         /// <remarks>Used when deserializing into typeless data before converting to typed data.</remarks>
         private TypelessData? ConvertTo(Type type, IEnumerable<string> lines)
         {
-            var typeName =
-                type.GetCustomAttribute<CsvConverterClassAttribute>()?.Name ??
-                type.Name;
+            var typeName = type.GetTypeName();
 
             var propertyAndNamePairs =
                 type.GetPropertyAndAttributePairs()

@@ -14,36 +14,33 @@ namespace Crowswood.CsvConverter.Serializations
             : base(factory, dataTypeName) => this.objectType = objectType;
 
         /// <inheritdoc/>
-        public override string[] Serialize() => 
-            this.objectType.GetAttributes()
-                .Select(metadata => new
-                {
-                    Metadata = metadata,
-                    Type = metadata.GetType()
-                })
-                .GroupBy(item => item.Type)
-                .Select(group => new 
-                { 
-                    Metadata = group.Select(item => item.Metadata), 
-                    OptionsMetadata = this.factory.Options.GetOptionMetadata(group.Key),
-                    Type = group.Key,
-                })
-                .Where(item => item.OptionsMetadata is not null)
-                .Select(item => Serialize(item.Metadata, item.OptionsMetadata!, item.Type))
-                .SelectMany(item => item)
-                .ToArray();
+        public override string[] Serialize()
+        {
+            var metadata =
+                this.objectType.GetAttributes();
+            var types =
+                metadata
+                    .Select(md => md.GetType())
+                    .Distinct();
 
-        /// <summary>
-        /// Serializes the specified <paramref name="metadata"/> using the specified <paramref name="optionMetadata"/> 
-        /// and <paramref name="type"/>.
-        /// </summary>
-        /// <param name="metadata">An <see cref="IEnumerable{T}"/> of <see cref="Attribute"/>.</param>
-        /// <param name="optionMetadata">An <see cref="OptionMetadata"/> instance.</param>
-        /// <param name="type">The <see cref="Type"/> of the <paramref name="metadata"/>.</param>
-        /// <returns>A <see cref="string[]"/>.</returns>
-        private string[] Serialize(IEnumerable<Attribute> metadata, OptionMetadata optionMetadata, Type type) =>
-            Serialize(metadata,
-                      optionMetadata.Prefix,
-                      GetProperties(type, optionMetadata.PropertyNames));
+            List<string> results = new();
+            foreach(var type in types)
+            {
+                var optionsMetadata = this.factory.Options.GetOptionMetadata(type);
+                if (optionsMetadata is null)
+                    continue;
+
+                var properties = type.GetReadWriteProperties(optionsMetadata.PropertyNames);
+
+                var values =
+                    metadata
+                        .Where(md => md.GetType() == type)
+                        .Select(md => md.AsStrings(properties));
+
+                var serializedMetadata = Serialize(values, optionsMetadata.Prefix);
+                results.AddRange(serializedMetadata);
+            }
+            return results.ToArray();
+        }
     }
 }

@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Crowswood.CsvConverter.Model;
+﻿using Crowswood.CsvConverter.Model;
 
 namespace Crowswood.CsvConverter.Helpers
 {
@@ -9,23 +8,13 @@ namespace Crowswood.CsvConverter.Helpers
     internal static class ConverterHelper
     {
         /// <summary>
-        /// Converts and returns the values of the properties of the specified <paramref name="item"/> 
-        /// that are in the <paramref name="properties"/> into an <see cref="IEnumerable{T}"/> of 
-        /// <see cref="string"/>.
+        /// Converts and returns the values of the specified <paramref name="items"/> as strings 
+        /// according to their <see cref="Type"/>.
         /// </summary>
-        /// <typeparam name="TBase">The type of item to process.</typeparam>
-        /// <param name="item">A <typeparamref name="TBase"/> object.</param>
-        /// <param name="properties">A <see cref="PropertyInfo"/> array.</param>
+        /// <param name="items">An <see cref="IEnumerable{T}"/> of <see cref="Type"/> and <see cref="object"/>.</param>
         /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="string"/>.</returns>
-        internal static IEnumerable<string> AsStrings<TBase>(TBase item, PropertyInfo[] properties)
-            where TBase : class =>
-            properties
-                .Select(property => new 
-                {
-                    Type = property.PropertyType,
-                    Value = property.GetValue(item),
-                })
-                .Select(item => GetText(item.Type, item.Value?.ToString()));
+        internal static IEnumerable<string> AsStrings(IEnumerable<(Type Type, object? Value)> items) =>
+            items.Select(item => GetText(item.Type, item.Value?.ToString()));
 
         /// <summary>
         /// Format the specified <paramref name="prefix"/>, <paramref name="typeName"/> and 
@@ -79,40 +68,40 @@ namespace Crowswood.CsvConverter.Helpers
                 .Select(items => items[2..^0])
                 .FirstOrDefault();
 
-        /// <summary>
-        /// Attempts to identify and return a <see cref="PropertyInfo"/> associated with the 
-        /// specified <paramref name="name"/> using the specified <paramref name="members"/> and 
-        /// <paramref name="propertyAndNamePairs"/>.
-        /// </summary>
-        /// <param name="members">An <see cref="OptionMember"/> array.</param>
-        /// <param name="propertyAndNamePairs">A <see cref="List{T}"/> of <see cref="PropertyAndNamePair"/> objects.</param>
-        /// <param name="name">A <see cref="string"/> containing the name.</param>
-        /// <returns>A <see cref="PropertyInfo"/> or null if none match.</returns>
-        /// <remarks>
-        /// Attempt to find the property in this order:
-        /// <list type="number">
-        /// <item>by option assignment; this overrides all others.</item>
-        /// <item>by defined name.</item>
-        /// <item>by property name.</item>
-        /// </list>
-        /// otherwise ignore it.
-        /// In all instances the name must match exactly, including case.
-        /// </remarks>
-        internal static PropertyInfo? GetProperty(OptionMember[] members,
-                                                  IEnumerable<PropertyAndNamePair> propertyAndNamePairs,
-                                                  string name) =>
-            members
-                .Where(member => member.Name == name)
-                .Select(member => member.Property)
-                .FirstOrDefault() ??
-            propertyAndNamePairs
-                .Where(item => item.Name == name)
-                .Select(item => item.Property)
-                .FirstOrDefault() ??
-            propertyAndNamePairs
-                .Where(item => item.Property.Name == name)
-                .Select(item => item.Property)
-                .FirstOrDefault();
+        ///// <summary>
+        ///// Attempts to identify and return a <see cref="PropertyInfo"/> associated with the 
+        ///// specified <paramref name="name"/> using the specified <paramref name="members"/> and 
+        ///// <paramref name="propertyAndNamePairs"/>.
+        ///// </summary>
+        ///// <param name="members">An <see cref="OptionMember"/> array.</param>
+        ///// <param name="propertyAndNamePairs">A <see cref="List{T}"/> of <see cref="PropertyAndNamePair"/> objects.</param>
+        ///// <param name="name">A <see cref="string"/> containing the name.</param>
+        ///// <returns>A <see cref="PropertyInfo"/> or null if none match.</returns>
+        ///// <remarks>
+        ///// Attempt to find the property in this order:
+        ///// <list type="number">
+        ///// <item>by option assignment; this overrides all others.</item>
+        ///// <item>by defined name.</item>
+        ///// <item>by property name.</item>
+        ///// </list>
+        ///// otherwise ignore it.
+        ///// In all instances the name must match exactly, including case.
+        ///// </remarks>
+        //internal static PropertyInfo? GetProperty(OptionMember[] members,
+        //                                          IEnumerable<PropertyAndNamePair> propertyAndNamePairs,
+        //                                          string name) =>
+        //    members
+        //        .Where(member => member.Name == name)
+        //        .Select(member => member.Property)
+        //        .FirstOrDefault() ??
+        //    propertyAndNamePairs
+        //        .Where(item => item.Name == name)
+        //        .Select(item => item.Property)
+        //        .FirstOrDefault() ??
+        //    propertyAndNamePairs
+        //        .Where(item => item.Property.Name == name)
+        //        .Select(item => item.Property)
+        //        .FirstOrDefault();
 
         /// <summary>
         /// Gets the names of the data-types from the specified <paramref name="lines"/> using the 
