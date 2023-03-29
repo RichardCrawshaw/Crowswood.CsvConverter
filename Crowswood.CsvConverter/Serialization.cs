@@ -205,17 +205,8 @@ namespace Crowswood.CsvConverter
             TypelessData(typeName, names, values);
 
         /// <inheritdoc/>
-        string ISerialization.ToString()
-        {
-            // Do pre-serialization adjustments.
-            PreSerializationAdjustments();
-
-            // Finally do the serialization.
-            var result =
-                string.Join(Environment.NewLine,
-                            ToArray(this.Options.OptionSerialize.ToArray()));
-            return result;
-        }
+        string ISerialization.ToString() =>
+            string.Join(Environment.NewLine, ToArray(this.Options.OptionSerialize.ToArray()));
 
         #endregion
 
@@ -276,7 +267,12 @@ namespace Crowswood.CsvConverter
             Add(new TypelessMetadataData(new SerializationFactory(this), dataTypeName, metadataPrefix, metadata));
 
         private Serialization TypedData<TObject>(IEnumerable<TObject> data) where TObject : class =>
-            Add(new TypedObjectData<TObject>(new SerializationFactory(this), GetTypeName<TObject>(), data));
+            TypedData<TObject>(data, new SerializationFactory(this), GetTypeName<TObject>());
+
+        private Serialization TypedData<TObject>(IEnumerable<TObject> data, SerializationFactory factory, string objectTypeName)
+            where TObject : class =>
+            Add(new AttributeMetadataData(factory, objectTypeName, typeof(TObject)),
+                new TypedObjectData<TObject>(factory, objectTypeName, data));
 
         private Serialization TypelessData(string typeName, string[] names, IEnumerable<string[]> values) =>
             Add(new TypelessObjectData(new SerializationFactory(this), typeName, names, values));
@@ -291,120 +287,10 @@ namespace Crowswood.CsvConverter
         /// </summary>
         /// <param name="data">A <see cref="BaseSerializationData"/> object.</param>
         /// <returns>The current instance which can be passed back by the calling routine and so enable fluent chaining.</returns>
-        protected Serialization Add(BaseSerializationData data)
+        protected Serialization Add(params BaseSerializationData[] data)
         {
-            this.serializations.Add(data);
+            this.serializations.AddRange(data);
             return this;
-        }
-
-        /// <summary>
-        /// Add into the <seealso cref="serializations"/> new <see cref="TypedMetadataData{TMetadata}"/> 
-        /// as defined in the <paramref name="objectDataMetadataTypes"/> using the specified 
-        /// <paramref name="typedObjectData"/>.
-        /// </summary>
-        /// <param name="objectDataMetadataTypes">A <see cref="List{T}"/> of <see cref="Tuple{T1, T2}"/> of <see cref="Type"/> and <see cref="List{T}"/> of <see cref="Type"/> that contains the object data and metadata types that define the <see cref="TypedMetadataData{TMetadata}"/> instances to insert.</param>
-        /// <param name="typedObjectData">An <see cref="IEnumerable{T}"/> of <see cref="TypedObjectData"/> containing the existing typed object data serializations.</param>
-        private void AddMetadataSerializations(List<(Type ObjectType, List<Type> MetadataTypes)> objectDataMetadataTypes, IEnumerable<TypedObjectData> typedObjectData)=>
-            objectDataMetadataTypes
-                .ForEach(item =>
-                    AddMetadataSerializations(typedObjectData, item.ObjectType, item.MetadataTypes));
-
-        /// <summary>
-        /// Add into the <seealso cref="serializations"/> before the <see cref="TypedObjectData{TObject}"/> 
-        /// serialization for the specified <paramref name="objectType"/> from the specified 
-        /// <paramref name="typedObjectData"/> a set of <see cref="TypedMetadataData{TMetadata}"/>
-        /// for the <paramref name="metadataTypes"/>.
-        /// </summary>
-        /// <param name="typedObjectData">An <see cref="IEnumerable{T}"/> of <see cref="TypedObjectData"/> containing the existing typed object data serializations.</param>
-        /// <param name="objectType">A <see cref="Type"/> indicating the type of the object data.</param>
-        /// <param name="metadataTypes">A <see cref="List{T}"/> of <see cref="Type"/> containing the types of types of the metadata serializations.</param>
-        private void AddMetadataSerializations(IEnumerable<TypedObjectData> typedObjectData, Type objectType, IEnumerable<Type> metadataTypes)
-        {
-            // Find the position of the object data serialization
-
-            var objectDataSerialization =
-                typedObjectData
-                    .FirstOrDefault(item => item.Type == objectType);
-            if (objectDataSerialization is null) 
-                return;
-
-            var index = this.serializations.IndexOf(objectDataSerialization);
-            if (index == -1) 
-                return;
-
-            var dataTypeName = GetTypeName(objectType);
-
-            // Now retrieve the metadata and filter by the the definitions in Options.
-            var metadata =
-                objectType.GetAttributes()
-                    .Where(item => this.Options.OptionMetadata.Any(om => om.Type == item.GetType()))
-                    .ToList();
-
-            // Create the required metadata serialization objects.
-            var metadataSerializations =
-                metadataTypes
-                    .Select(metadataType =>
-                        TypedMetadataData.Create(metadataType,
-                                                 this,
-                                                 dataTypeName,
-                                                 metadata))
-                    .ToList();
-            this.serializations.InsertRange(index, metadataSerializations);
-        }
-
-        /// <summary>
-        /// Determines and returns a list of the object type and metadata type combinations that 
-        /// are missing from the <seealso cref="serializations"/> using the specified <paramref name="typedObjectData"/> 
-        /// and <paramref name="typedMetadataData"/>.
-        /// </summary>
-        /// <param name="typedObjectData">A <see cref="List{T}"/> of <see cref="TypedObjectData"/> instances.</param>
-        /// <param name="typedMetadataData">A <see cref="List{T}"/> of <see cref="TypedMetadataData"/> instances.</param>
-        /// <returns>A <see cref="List{T}"/> of <see cref="Type"/> and <see cref="List{T}"/> of <see cref="Type"/>.</returns>
-        private List<(Type ObjectType, List<Type> MetadataTypes)> GetObjectTypeMetadataTypeCombinations(IEnumerable<TypedObjectData> typedObjectData, IEnumerable<TypedMetadataData> typedMetadataData)
-        {
-            var combinations =
-                typedObjectData
-                    .Select(item => item.Type)
-                    .Select(type => new
-                    {
-                        ObjectType = type,
-                        MetadataTypes =
-                            type.GetAttributes()
-                                .GetAttributeTypes()
-                                .Where(attrType => this.Options.OptionMetadata.Any(om => om.Type == attrType))
-                                .ToArray(),
-                    })
-                    .Select(item =>
-                        item.MetadataTypes
-                            .Select(metadataType => new { item.ObjectType, MetadataType = metadataType, }))
-                    .SelectMany(item => item)
-                    .Select(pair => (pair.ObjectType, pair.MetadataType))
-                    .ToList();
-
-            combinations.
-                RemoveAll(item =>
-                    typedMetadataData
-                        .Any(serialization =>
-                            serialization.MetadataType == item.ObjectType &&
-                            serialization.MetadataTypeName == item.MetadataType.Name));
-
-            var results =
-                combinations
-                    .Select(item => item.ObjectType)
-                    .Distinct()
-                    .Select(objectType => new
-                    {
-                        ObjectType = objectType,
-                        MetadataTypes =
-                            combinations
-                                .Where(item => item.ObjectType == objectType)
-                                .Select(item => item.MetadataType)
-                                .ToList()
-                    })
-                    .Select(item => (item.ObjectType, item.MetadataTypes))
-                    .ToList();
-
-            return results;
         }
 
         /// <summary>
@@ -424,39 +310,6 @@ namespace Crowswood.CsvConverter
         private static string GetTypeName(Type type) =>
             type.GetCustomAttribute<CsvConverterClassAttribute>()?.Name ??
             type.Name;
-
-        /// <summary>
-        /// Perform pre-serialization adjustments.
-        /// </summary>
-        /// <remarks>
-        /// The adjustments include adding in any <see cref="TypedMetadataData{TMetadata}"/> 
-        /// instances where the <code>ObjectData</code> type has attributes that are defined in 
-        /// <seealso cref="Options.OptionMetadata"/> but no corresponding entry in <seealso cref="serializations"/>
-        /// exists.
-        /// </remarks>
-        private void PreSerializationAdjustments()
-        {
-            // This is a list of all the typed metadata instances.
-            var typedMetadataData =
-                this.serializations.Get<TypedMetadataData>()
-                    .ToList();
-
-            // This is a list of all the typed object data instances.
-            var typedObjectData =
-                this.serializations.Get<TypedObjectData>()
-                    .ToList();
-
-            // There should be a TypedMetadataData serialization for each `typedObjectData`
-            // instance that has an attribute with a type that is included in the option metadata.
-            // Create a virtual list of all the expected metadata serializations and remove all
-            // those that already exist; this will leave just those that are missing.
-            var objectDataMetadataTypes =
-                GetObjectTypeMetadataTypeCombinations(typedObjectData, typedMetadataData);
-
-            // So for each object type insert before it appropriate serializations for the metadata 
-            // types from `objectDataMetadataTypes`.
-            AddMetadataSerializations(objectDataMetadataTypes, typedObjectData);
-        }
 
         /// <summary>
         /// Serialize the <seealso cref="serializations"/> preceeded by the specified <paramref name="preceedingData"/> 
@@ -496,22 +349,12 @@ namespace Crowswood.CsvConverter
             /// </summary>
             internal Options Options => this.serialization.Options;
 
+            /// <summary>
+            /// Gets the <see cref="Serialization"/> instances.
+            /// </summary>
             private IEnumerable<BaseSerializationData> Serializations => this.serialization.serializations;
 
             public SerializationFactory(Serialization serialization) => this.serialization = serialization;
-
-            /// <summary>
-            /// Gets the Metadata Type Names.
-            /// </summary>
-            /// <typeparam name="T">A <see cref="Type"/> to use to restrict to either typed or typeless metadata.</typeparam>
-            /// <returns>A <see cref="string[]"/>.</returns>
-            public string[] GetMetadataTypeNames<T>() where T : BaseMetadataData =>
-                this.Serializations
-                    .Where(serialization => serialization.GetType().IsAssignableTo(typeof(T)))
-                    .Select(serialization => serialization as T)
-                    .NotNull()
-                    .Select(metadataSerialization => metadataSerialization.MetadataTypeName)
-                    .ToArray();
 
             /// <summary>
             /// Gets the Property Prefix for the specified <paramref name="typeName"/>.
