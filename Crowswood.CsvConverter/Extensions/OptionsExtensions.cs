@@ -85,6 +85,22 @@ namespace Crowswood.CsvConverter.Extensions
                 .FirstOrDefault(metadata => metadata.Type == type);
 
         /// <summary>
+        /// Gets the property names from the <paramref name="properties"/> with any conversions 
+        /// that are defined in the <seealso cref="options"/> or as an attribute on the member 
+        /// itself.
+        /// </summary>
+        /// <param name="properties">A <see cref="PropertyInfo[]"/> that contains the properties.</param>
+        /// <param name="options">The <see cref="Options"/> object.</param>
+        /// <returns>A <see cref="string[]"/> containing the names.</returns>
+        public static string[] GetParameters(this PropertyInfo[] properties, Options options) =>
+            properties
+                .Select(property =>
+                    options.GetOptionMember(property)?.Name ??
+                    property.GetCustomAttribute<CsvConverterPropertyAttribute>()?.Name ??
+                    property.Name)
+                .ToArray();
+
+        /// <summary>
         /// Retrieves the properties of the <seealso cref="OptionMetadata.Type"/> that match the
         /// <seealso cref="OptionMetadata.PropertyNames"/>.
         /// </summary>

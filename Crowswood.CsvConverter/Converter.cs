@@ -1,5 +1,5 @@
-﻿using System.Reflection;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
+using Crowswood.CsvConverter.Extensions;
 using Crowswood.CsvConverter.Handlers;
 using Crowswood.CsvConverter.Helpers;
 using Crowswood.CsvConverter.Interfaces;
@@ -266,16 +266,7 @@ namespace Crowswood.CsvConverter
                 ConverterHelper.GetTypeNames(lines,
                                               configHandler.GetPropertyPrefixes(),
                                               tn => configHandler.GetPropertyPrefix(tn));
-            var types =
-                Assembly.GetAssembly(typeof(TBase))?.GetTypes()
-                    .Select(type => new
-                    {
-                        Type = type,
-                        Attribute = type.GetCustomAttribute<CsvConverterClassAttribute>(),
-                    })
-                    .Where(n => typeNames.Contains(n.Type.Name) ||
-                                typeNames.Contains(n.Attribute?.Name))
-                    .Select(n => n.Type) ?? new List<Type>();
+            var types = typeof(TBase).GetTypes(typeNames);
             return types;
         }
 

@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Crowswood.CsvConverter.Extensions;
+﻿using Crowswood.CsvConverter.Extensions;
 using Crowswood.CsvConverter.Helpers;
 
 namespace Crowswood.CsvConverter.Serializations
@@ -29,10 +28,15 @@ namespace Crowswood.CsvConverter.Serializations
         where TObject : class
     {
         private readonly IEnumerable<TObject> data;
-        private readonly PropertyInfo[] properties;
 
         /// <inheritdoc/>
-        protected override string[] Names { get; }
+        protected override string[] Names => 
+            typeof(TObject)
+                .GetReadWriteProperties()
+                .GetPropertyAndAttributePairs()
+                .GetPropertyAndNamePairs()
+                .Select(item => item.Name)
+                .ToArray();
 
         /// <inheritdoc/>
         public override Type Type => typeof(TObject);
@@ -41,51 +45,25 @@ namespace Crowswood.CsvConverter.Serializations
             : base(factory, typeName)
         {
             this.data = data;
-            this.properties = GetProperties(typeof(TObject));
-            this.Names = GetNames(this.properties);
+            //this.properties = GetProperties(typeof(TObject));
+            //this.Names = GetNames(this.properties);
         }
 
         /// <inheritdoc/>
-        protected override string[] GetValues(string valuePrefix) =>
-            this.data
-                .Select(item => TypedObjectData<TObject>.GetValues(item, this.properties))
-                .Where(values => values.Any())
-                .Where(values => values.Length == this.Names.Length)
-                .Select(values => values.AsCsv(valuePrefix, this.typeName))
-                .ToArray();
+        protected override string[] GetValues(string valuePrefix)
+        {
+            var properties = typeof(TObject).GetReadWriteProperties();
 
-        /// <summary>
-        /// Gets the names from the specified <paramref name="properties"/>.
-        /// </summary>
-        /// <param name="properties">A <see cref="PropertyInfo[]"/>.</param>
-        /// <returns>A <see cref="string[]"/>.</returns>
-        private static string[] GetNames(PropertyInfo[] properties) =>
-            properties
-                .GetPropertyAndAttributePairs()
-                .GetPropertyAndNamePairs()
-                .Select(item => item.Name)
-                .ToArray();
-
-        /// <summary>
-        /// Gets public instance properties from the specified <paramref name="type"/>.
-        /// </summary>
-        /// <param name="type">A <see cref="Type"/>.</param>
-        /// <returns>A <see cref="PropertyInfo[]"/>.</returns>
-        private static PropertyInfo[] GetProperties(Type type) =>
-            type.GetProperties(BindingFlags.Instance |
-                               BindingFlags.Public)
-                .Where(property => property.CanRead && property.CanWrite)
-                .ToArray();
-
-        /// <summary>
-        /// Gets the property values of the specified <paramref name="item"/> using the specified 
-        /// <paramref name="properties"/>.
-        /// </summary>
-        /// <param name="item">A <typeparamref name="TObject"/> object.</param>
-        /// <param name="properties">A <see cref="PropertyInfo[]"/>.</param>
-        /// <returns>A <see cref="string[]"/>.</returns>
-        private static string[] GetValues(TObject item, PropertyInfo[] properties) =>
-            ConverterHelper.AsStrings(item, properties)
-                .ToArray();
+            var results =
+                this.data
+                    .Select(item => item.AsStrings(properties))
+                    .Select(item => ConverterHelper.AsStrings(item))
+                    .Select(values => values.ToArray())
+                    .Where(values => values.Any())
+                    .Where(values => values.Length == this.Names.Length)
+                    .Select(values => values.AsCsv(valuePrefix, this.typeName))
+                    .ToArray();
+            return results;
+        }
     }
 }

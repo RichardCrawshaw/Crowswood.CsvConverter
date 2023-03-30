@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using Crowswood.CsvConverter.Helpers;
 using Crowswood.CsvConverter.Model;
 
 namespace Crowswood.CsvConverter.Extensions
@@ -7,8 +6,26 @@ namespace Crowswood.CsvConverter.Extensions
     /// <summary>
     /// An extension class to aid with reflection.
     /// </summary>
+    /// <remarks>
+    /// This extension class only holds general reflection methods; it does not contain any 
+    /// methods that extend <see cref="Type"/>. Those should live in the <see cref="TypeExtensions"/> 
+    /// class.
+    /// </remarks>
     public static class ReflectionExtensions
     {
+        /// <summary>
+        /// Retrieves and returns the values of the properties of the specified <paramref name="item"/> 
+        /// that are in the <paramref name="properties"/>.
+        /// </summary>
+        /// <typeparam name="TBase">The type of item to process.</typeparam>
+        /// <param name="item">A <typeparamref name="TBase"/> object.</param>
+        /// <param name="properties">A <see cref="PropertyInfo"/> array.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="Type"/> and <see cref="object"/>.</returns>
+        internal static IEnumerable<(Type Type, object? Value)> AsStrings<TBase>(this TBase item, PropertyInfo[] properties)
+            where TBase : class =>
+            properties
+                .Select(property => (Type: property.PropertyType, Value: property.GetValue(item)));
+
         /// <summary>
         /// Checks and returns whether the <paramref name="method"/> has arguments that match the
         /// number and order of the specified <paramref name="types"/> and whether the return type
@@ -59,100 +76,80 @@ namespace Crowswood.CsvConverter.Extensions
         }
 
         /// <summary>
-        /// Retrieves an instance non-public generic method with a generic type parameter of
-        /// <typeparamref name="TParam"/>, has a name of <paramref name="name"/> and accepts the 
-        /// specified <paramref name="arguments"/> to process objects of type <paramref name="genericType"/>.
+        /// Gets the types of the <paramref name="attributes"/>.
         /// </summary>
-        /// <typeparam name="TParam">The generic type parameter to apply to the method.</typeparam>
-        /// <typeparam name="TReturn">The type of the return value of the method.</typeparam>
-        /// <param name="name">A <see cref="string"/> that contains the name of the method.</param>
-        /// <param name="genericType">A <see cref="Type"/> that indicates the type of object that the method will handle.</param>
-        /// <param name="arguments">An <see cref="object"/> array that contains the arguments to supply to the method.</param>
-        /// <returns>A <see cref="MethodInfo"/>.</returns>
-        public static MethodInfo GetGenericMethod(this Type type, string name, Type genericType, Type returnType, object[] arguments) =>
-            type.GetGenericMethod(name, genericType, returnType, arguments.Select(argument => argument.GetType()).ToArray());
+        /// <param name="attributes">An <see cref="IEnumerable{T}"/> of <see cref="Attribute"/>.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="Type"/>.</returns>
+        public static IEnumerable<Type> GetAttributeTypes(this IEnumerable<Attribute> attributes) =>
+            attributes
+                .Select(attribute => attribute.GetType())
+                .Distinct();
 
         /// <summary>
-        /// Retrieves an instance non-public generic method with a generic type parameter of
-        /// <typeparamref name="TParam"/>, has a name of <paramref name="name"/> and accepts the 
-        /// arguments of the specified <paramref name="argumentTypes"/> to process objects of type 
-        /// <paramref name="genericType"/>.
+        /// Retrieves the <see cref="PropertyAndAttributePair"/> objects for the <paramref name="properties"/>.
         /// </summary>
-        /// <typeparam name="TParam">The generic type parameter to apply to the method.</typeparam>
-        /// <typeparam name="TReturn">The type of the return value of the method.</typeparam>
-        /// <param name="name">A <see cref="string"/> that contains the name of the method.</param>
-        /// <param name="genericType">A <see cref="Type"/> that indicates the type of object that the method will handle.</param>
-        /// <param name="argumentTypes">A <see cref="Type"/> array that contains the types of arguments to supply to the method.</param>
-        /// <returns>A <see cref="MethodInfo"/>.</returns>
-        /// <exception cref="InvalidOperationException">If the a matcing method is not found.</exception>
-        public static MethodInfo GetGenericMethod(this Type type, string name, Type genericType, Type returnType, Type[] argumentTypes) =>
-            type.GetGenericMethod(name,
-                                  BindingFlags.Instance |
-                                  BindingFlags.NonPublic,
-                                  genericType,
-                                  argumentTypes,
-                                  returnType) ??
-            throw new InvalidOperationException(
-                $"Failed to bind {ReflectionHelper.GetMethodSignature(name, genericType, returnType, argumentTypes)}.");
+        /// <param name="properties">A <see cref="PropertyInfo[]"/>.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="PropertyAndAttributePair"/> objects.</returns>
+        public static IEnumerable<PropertyAndAttributePair> GetPropertyAndAttributePairs(this PropertyInfo[] properties) =>
+            properties
+                .Select(property => new PropertyAndAttributePair(property));
 
         /// <summary>
-        /// Extension method to return a fully constructed generic method from the <paramref name="type"/>
-        /// that has the specified <paramref name="name"/> and matches the specified <paramref name="bindingFlags"/>,
-        /// for the specified <paramref name="genericType"/> that matches the specified 
-        /// <paramref name="argumentTypes"/> and <paramref name="returnType"/>
+        /// Convert the <paramref name="propertyAndAttributePairs"/> into an <see cref="IEnumerable{T}"/>
+        /// of <see cref="PropertyAndNamePair"/> objects.
         /// </summary>
-        /// <param name="type">The <see cref="Type"/> from which to return the method.</param>
-        /// <param name="name">A <see cref="string"/> that contains the name of the method.</param>
-        /// <param name="bindingFlags">The <see cref="BindingFlags"/> to use.</param>
-        /// <param name="genericType">The <see cref="Type"/> of the generic type.</param>
-        /// <param name="argumentTypes">A <see cref="Type[]"/> containing the argument types.</param>
-        /// <param name="returnType">The <see cref="Type"/> of the return type.</param>
-        /// <returns>A <see cref="MethodInfo"/> or null if the method is not found or could not be constructed.</returns>
-        public static MethodInfo? GetGenericMethod(this Type type,
-                                                   string name,
-                                                   BindingFlags bindingFlags,
-                                                   Type genericType,
-                                                   Type[] argumentTypes,
-                                                   Type returnType) =>
-            type.GetGenericMethod(name, bindingFlags, new[] { genericType }, argumentTypes, returnType);
+        /// <param name="propertyAndAttributePairs">An <see cref="IEnumerable{T}"/> of <see cref="PropertyAndAttributePair"/> objects.</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="PropertyAndNamePair"/> objects.</returns>
+        public static IEnumerable<PropertyAndNamePair> GetPropertyAndNamePairs(this IEnumerable<PropertyAndAttributePair> propertyAndAttributePairs) =>
+            propertyAndAttributePairs
+                .Select(item => new PropertyAndNamePair(item));
 
         /// <summary>
-        /// Extension method to return a fully constructed generic method from the <paramref name="type"/>
-        /// that has the specified <paramref name="name"/> and matches the specified <paramref name="bindingFlags"/>,
-        /// for the specified <paramref name="genericTypes"/> that matches the specified 
-        /// <paramref name="argumentTypes"/> and <paramref name="returnType"/>
+        /// Extension method to determine and return the depth of the type that declares the 
+        /// <paramref name="property"/>.
         /// </summary>
-        /// <param name="type">The <see cref="Type"/> from which to return the method.</param>
-        /// <param name="name">A <see cref="string"/> that contains the name of the method.</param>
-        /// <param name="bindingFlags">The <see cref="BindingFlags"/> to use.</param>
-        /// <param name="genericTypes">A <see cref="Type[]"/> containing the generic types.</param>
-        /// <param name="argumentTypes">A <see cref="Type[]"/> containing the argument types.</param>
-        /// <param name="returnType">The <see cref="Type"/> of the return type.</param>
-        /// <returns>A <see cref="MethodInfo"/> or null if the method is not found or could not be constructed.</returns>
-        public static MethodInfo? GetGenericMethod(this Type type,
-                                                   string name,
-                                                   BindingFlags bindingFlags,
-                                                   Type[] genericTypes,
-                                                   Type[] argumentTypes,
-                                                   Type returnType)
-        {
-            // We need to check the method parameters AFTER constructing the generic method to be 
-            // able to check parameter types, otherwise any parameters based on the type-parameter
-            // won't have been constructed themselves. Because constructing a generic method is
-            // fairly heavy, we check the number of arguments match the number of types before
-            // doing the construction so that we can filter out any methods with the wrong number
-            // of parameters.
-            var methods =
-                type.GetMethods(bindingFlags)
-                    .Where(method => method.Name == name)
-                    .Select(method => method.ConstructGenericMethod(genericTypes))
-                    .NotNull()
-                    .Where(method => method.CheckArguments(argumentTypes, returnType))
-                    .ToList();
-            var method =
-                methods.Count == 1 ? methods.First() : null;
-            return method;
-        }
+        /// <param name="property">The <see cref="PropertyInfo"/>.</param>
+        /// <returns>An <see cref="int"/>.</returns>
+        public static int GetTypeDepth(this PropertyInfo property) =>
+            property.DeclaringType?.GetDepth() ?? 0;
+
+        /// <summary>
+        /// Gets the values of the properties from the specified <paramref name="item"/> for the  
+        /// specified <paramref name="propertyNames"/> as a <see cref="string[]"/> including 
+        /// adding leading and trailing double-quote marks.
+        /// </summary>
+        /// <param name="item">An <see cref="object"/>.</param>
+        /// <param name="propertyNames">A <see cref="string[]"/> containing the name of the properties.</param>
+        /// <returns>A <see cref="string[]"/>.</returns>
+        public static string[] GetValues(this object item, string[] propertyNames) =>
+            item.GetValues(propertyNames, item.GetType().GetProperties());
+
+        /// <summary>
+        /// Gets the values of the properties from the specified <paramref name="item"/> using 
+        /// the specified <paramref name="properties"/> that are named in the specified <paramref name="propertyNames"/>.
+        /// as a <see cref="string[]"/> including adding leading and trailing double-quote marks.
+        /// </summary>
+        /// <param name="item">An <see cref="object"/>.</param>
+        /// <param name="propertyNames">A <see cref="string[]"/> containing the names of the properties that are to be included.</param>
+        /// <param name="properties">A <see cref="PropertyInfo[]"/> containing the properties to retrieve.</param>
+        /// <returns>A <see cref="string[]"/>.</returns>
+        public static string[] GetValues(this object item, string[] propertyNames, PropertyInfo[] properties) =>
+            propertyNames
+                .Select(propertyName => properties.FirstOrDefault(property => property.Name == propertyName))
+                .Select(property => property?.GetValue(item)?.ToString() ?? string.Empty)
+                .Select(value => $"\"{value}\"")
+                .ToArray();
+
+        /// <summary>
+        /// Determine and return whether <paramref name="attribute"/> may be applied to a class.
+        /// </summary>
+        /// <param name="attribute">An <see cref="Attribute"/>.</param>
+        /// <returns>True if it is; false otherwise.</returns>
+        public static bool IsClassAttribute(this Attribute attribute) =>
+            attribute
+                .GetType()
+                .GetCustomAttributes<AttributeUsageAttribute>(true)
+                .Any(a => (a.ValidOn & AttributeTargets.Class) == AttributeTargets.Class);
 
         /// <summary>
         /// Sets the properties on <paramref name="result"/> for the specified <paramref name="members"/>
@@ -185,7 +182,20 @@ namespace Crowswood.CsvConverter.Extensions
             {
                 // Get the PropertyInfo to use to set the value for the name, based on the
                 // OptionMembers and PropertyAnNamePairs.
-                var property = ConverterHelper.GetProperty(members, propertyAndNamePairs, names[index]);
+                var property =
+                    members
+                        .Where(member => member.Name == names[index])
+                        .Select(member => member.Property)
+                        .FirstOrDefault() ??
+                    propertyAndNamePairs
+                        .Where(item => item.Name == names[index])
+                        .Select(item => item.Property)
+                        .FirstOrDefault() ??
+                    propertyAndNamePairs
+                        .Where(item => item.Property.Name == names[index])
+                        .Select(item => item.Property)
+                        .FirstOrDefault();
+                //ConverterHelper.GetProperty(members, propertyAndNamePairs, names[index]);
                 properties.Add(property);
             }
 

@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Crowswood.CsvConverter.Extensions;
+﻿using Crowswood.CsvConverter.Extensions;
 using Crowswood.CsvConverter.Handlers;
 using Crowswood.CsvConverter.Helpers;
 
@@ -97,15 +96,16 @@ namespace Crowswood.CsvConverter.Processors
                 throw new ArgumentException(
                     $"Unable to assign an object of type {type.Name} to {typeof(TBase).Name}.");
 
-            var properties = GetProperties(type);
-            var parameters = GetParameters(properties);
+            var properties = type.GetReadWritePropertiesByDepth();
+            var parameters = properties.GetParameters(this.options);
             var typeName = GetTypeName(type);
 
             var results =
                 values
                     .NotNull()
                     .Where(value => value.GetType().Equals(type))
-                    .Select(value => ConverterHelper.AsStrings(value, properties).ToArray())
+                    .Select(value => value.AsStrings(properties))
+                    .Select(items => ConverterHelper.AsStrings(items).ToArray())
                     .Select(value => ConverterHelper.FormatCsvData(this.options.ValuesPrefix, typeName, value))
                     .ToList();
             results.Insert(0,
@@ -119,48 +119,14 @@ namespace Crowswood.CsvConverter.Processors
         #region Support routines
 
         /// <summary>
-        /// Gets the public read/write properties that are supported for serialization for the 
-        /// specified <paramref name="type"/>.
-        /// </summary>
-        /// <param name="type">A <see cref="Type"/>.</param>
-        /// <returns>A <see cref="PropertyInfo"/> array.</returns>
-        private static PropertyInfo[] GetProperties(Type type) =>
-            type.GetProperties()
-                .Where(property => property.CanRead)
-                .Where(property => property.CanWrite)
-                .Where(property => property.PropertyType == typeof(string) ||
-                                   property.PropertyType.IsValueType &&
-                                   property.PropertyType != typeof(DateTime))
-                .Select(property => new { Property = property, Depth = property.GetTypeDepth(), })
-                .OrderBy(n => n.Depth)
-                .Select(n => n.Property)
-                .ToArray();
-
-        /// <summary>
-        /// Gets the property names from the specified <paramref name="properties"/> with any 
-        /// conversions that are defined in the <seealso cref="options"/> or as an attribute on 
-        /// the member itself.
-        /// </summary>
-        /// <param name="properties">A <see cref="PropertyInfo[]"/> that contains the properties.</param>
-        /// <returns>A <see cref="string[]"/> containing the names.</returns>
-        private string[] GetParameters(PropertyInfo[] properties) =>
-            properties
-                .Select(property =>
-                    this.options.GetOptionMember(property)?.Name ??
-                    property.GetCustomAttribute<CsvConverterPropertyAttribute>()?.Name ??
-                    property.Name)
-                .ToArray();
-
-        /// <summary>
         /// Gets the type name for the specified <paramref name="type"/> with any conversion that 
         /// is defined in the <seealso cref="options"/> or as an attribute on the type itself.
         /// </summary>
         /// <param name="type">The <see cref="Type"/> to get the name of.</param>
         /// <returns>A <see cref="string"/> containing the type name.</returns>
         private string GetTypeName(Type type) =>
-            this.options.GetOptionType(type)?.Name ??
-            type.GetCustomAttribute<CsvConverterClassAttribute>()?.Name ??
-            type.Name;
+            this.options.GetOptionType(type)?.Name ?? 
+            type.GetTypeName();
 
         /// <summary>
         /// Serializes the specified <paramref name="typeName"/> with the specified <paramref name="propertyNames"/> 
@@ -188,7 +154,7 @@ namespace Crowswood.CsvConverter.Processors
                         .Select(n => new
                         {
                             n.Metadata!.Prefix,
-                            Values = GetValues(n.Item, n.Metadata),
+                            Values = n.Item.GetValues(n.Metadata.PropertyNames),
                         })
                         .Select(n => ConverterHelper.FormatCsvData(n.Prefix, typeName, n.Values));
                 results.AddRange(metadataValues);
@@ -213,33 +179,6 @@ namespace Crowswood.CsvConverter.Processors
 
             return results;
         }
-
-        /// <summary>
-        /// Gets the values of the properties from the specified <paramref name="item"/> as 
-        /// defined in the specified <paramref name="optionMetadata"/> as a <see cref="string[]"/> 
-        /// including adding leading and trailing double-quote marks.
-        /// </summary>
-        /// <param name="item">An <see cref="object"/>.</param>
-        /// <param name="optionMetadata">A <see cref="OptionMetadata"/> object.</param>
-        /// <returns>A <see cref="string[]"/>.</returns>
-        private static string[] GetValues(object item, OptionMetadata optionMetadata) =>
-            GetValues(item, optionMetadata.PropertyNames, item.GetType().GetProperties());
-
-        /// <summary>
-        /// Gets the values of the properties from the specified <paramref name="item"/> using 
-        /// the specified <paramref name="properties"/> that are named in the specified <paramref name="propertyNames"/>.
-        /// as a <see cref="string[]"/> including adding leading and trailing double-quote marks.
-        /// </summary>
-        /// <param name="item">An <see cref="object"/>.</param>
-        /// <param name="propertyNames">A <see cref="string[]"/> containing the names of the properties that are to be included.</param>
-        /// <param name="properties">A <see cref="PropertyInfo[]"/> containing the properties to retrieve.</param>
-        /// <returns>A <see cref="string[]"/>.</returns>
-        private static string[] GetValues(object item, string[] propertyNames, PropertyInfo[] properties) =>
-            propertyNames
-                .Select(propertyName => properties.FirstOrDefault(property => property.Name == propertyName))
-                .Select(property => property?.GetValue(item)?.ToString() ?? string.Empty)
-                .Select(value => $"\"{value}\"")
-                .ToArray();
 
         #endregion
     }

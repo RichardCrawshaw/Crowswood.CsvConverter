@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Reflection;
 using Crowswood.CsvConverter.Extensions;
 using Crowswood.CsvConverter.Helpers;
 
@@ -122,9 +121,7 @@ namespace Crowswood.CsvConverter.Handlers
                 metadata
                     .Select(item => item as Attribute)
                     .NotNull()
-                    .Where(attribute =>
-                        attribute.GetType().GetCustomAttributes<AttributeUsageAttribute>(true)
-                            .Any(a => (a.ValidOn & AttributeTargets.Class) == AttributeTargets.Class))
+                    .Where(attribute => attribute.IsClassAttribute())
                     .ToArray();
             if (attributes.Any())
             {
