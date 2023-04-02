@@ -62,10 +62,10 @@ namespace Crowswood.CsvConverter.Processors
                     .Select(type => new
                     {
                         TypeName = this.conversionHandler.ConvertType(type.Name),
-                        PropertyNames = ConvertTo(type, lines),
+                        TypelessData = ConvertTo(type, this.lines),
                     })
-                    .Where(n => n.PropertyNames is not null)
-                    .ToDictionary(n => n.TypeName, n => n.PropertyNames);
+                    .Where(n => n.TypelessData is not null)
+                    .ToDictionary(n => n.TypeName, n => n.TypelessData!);
 
             foreach (var data in typelessData.Values)
                 ConvertTo(data!, typelessData!);

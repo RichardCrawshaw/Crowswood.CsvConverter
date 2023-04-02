@@ -11,7 +11,7 @@
         /// </summary>
         /// <param name="key">A <see cref="string"/> containing the key.</param>
         /// <param name="value">A <see cref="string"/> containing the value.</param>
-        /// <returns>An <see cref="IOptionSerialization"/> object to allow chaining.</returns>
+        /// <returns>An <see cref="ISerialization"/> object to allow chaining.</returns>
         ISerialization GlobalConfig(string key, string  value);
 
         /// <summary>
@@ -28,7 +28,7 @@
         /// <typeparam name="TObject">The type to associate with this type configuration.</typeparam>
         /// <param name="key">A <see cref="string"/> containing the key.</param>
         /// <param name="value">A <see cref="string"/> containing the value.</param>
-        /// <returns>An <see cref="IOptionSerialization"/> object to allow chaining.</returns>
+        /// <returns>An <see cref="ISerialization"/> object to allow chaining.</returns>
         ISerialization TypeConfig<TObject>(string key, string value)
             where TObject : class;
 
@@ -39,7 +39,7 @@
         /// <param name="objectType">A <see cref="Type"/> associated with this type configuration.</param>
         /// <param name="key">A <see cref="string"/> containing the key.</param>
         /// <param name="value">A <see cref="string"/> containing the value.</param>
-        /// <returns>An <see cref="IOptionSerialization"/> object to allow chaining.</returns>
+        /// <returns>An <see cref="ISerialization"/> object to allow chaining.</returns>
         ISerialization TypeConfig(Type type, string key, string value);
 
         /// <summary>
@@ -49,7 +49,7 @@
         /// <param name="objectTypeName">A <see cref="string"/> containing the name of the type to associate with this type configuration.</param>
         /// <param name="key">A <see cref="string"/> containing the key.</param>
         /// <param name="value">A <see cref="string"/> containing the value.</param>
-        /// <returns>An <see cref="IOptionSerialization"/> object to allow chaining.</returns>
+        /// <returns>An <see cref="ISerialization"/> object to allow chaining.</returns>
         ISerialization TypeConfg(string typeName, string key, string value);
 
         /// <summary>

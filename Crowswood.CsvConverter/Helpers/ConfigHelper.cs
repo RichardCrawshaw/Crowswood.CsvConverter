@@ -22,7 +22,7 @@ namespace Crowswood.CsvConverter.Helpers
         {
             var globalConfig =
                 items
-                    .Where(items => items[0] == ConfigHandler.Configurations.GlobalConfigPrefix)
+                    .Where(items => items[0] == Configurations.GlobalConfigPrefix)
                     .Where(items => items.Length >= 3)
                     .Select(items => new { Name = items[1], Value = items[2], })
                     .Select(n => new GlobalConfig(n.Name, n.Value))

@@ -2,7 +2,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
 
-namespace Crowswood.CsvConverter.Tests.ConverterTests
+namespace Crowswood.CsvConverter.Tests
 {
     [TestClass]
     public class ConverterSerializeTests
@@ -33,7 +33,7 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
 
             // Assert
             Assert.IsNotNull(text, "Failed to serialize.");
-            Assert.IsTrue(string.IsNullOrEmpty(text), 
+            Assert.IsTrue(string.IsNullOrEmpty(text),
                 "Serialization with no data does not produce empty result.");
         }
 
@@ -117,7 +117,7 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 Options.None;
             var converter = new Converter(options);
 
-            var globalConfig = 
+            var globalConfig =
                 new Dictionary<string, string>
                 {
                     [Converter.Keys.GlobalConfig.ConversionTypePrefix] = "AAA",
@@ -346,7 +346,7 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             var text =
                 converter
                     .Serialize()
-                    .TypedData<Foo>(fooData)
+                    .TypedData(fooData)
                     .ToString();
 
             // Assert
@@ -377,7 +377,7 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             };
 
             // Act
-            var text=
+            var text =
                 converter
                     .Serialize()
                     .TypelessData("SomeDataType", names, values)
@@ -469,7 +469,7 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                     .BlankLine()
                     .Comment("#", fooDataComment)
                     .TypedMetadata<SomeMetadata, Foo>(fooMetadata)
-                    .TypedData<Foo>(fooData)
+                    .TypedData(fooData)
                     .ToString();
 
             // Assert
@@ -703,7 +703,7 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 converter
                     .Serialize()
                     .Comment("#", "This is the Attribute Data Test.")
-                    .TypedData<AttrFoo>(data)
+                    .TypedData(data)
                     .ToString();
 
             // Assert
@@ -711,9 +711,9 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             {
                 ["Opening comment"] = "# This is the Attribute Data Test.",
 
-				["Foo Properties"] = "Properties,FooObj,Identity,FullName,Val",
-				["Foo Values 1"] = "Values,FooObj,1,\"Fred\",\"East\"",
-				["Foo Values 2"] = "Values,FooObj,2,\"Bert\",\"West\"",
+                ["Foo Properties"] = "Properties,FooObj,Identity,FullName,Val",
+                ["Foo Values 1"] = "Values,FooObj,1,\"Fred\",\"East\"",
+                ["Foo Values 2"] = "Values,FooObj,2,\"Bert\",\"West\"",
             };
 
             var expectedLineCount =
@@ -752,7 +752,7 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
                 converter
                     .Serialize()
                     .TypedMetadata<AttrMetadata, AttrFoo>(metadata)
-                    .TypedData<AttrFoo>(data)
+                    .TypedData(data)
                     .ToString();
 
             // Assert
@@ -760,8 +760,8 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             {
                 ["Foo metadata 1"] = "MD,FooObj,\"North\",5",
                 ["Foo Properties"] = "Properties,FooObj,Identity,FullName,Val",
-				["Foo Values 1"] = "Values,FooObj,1,\"Fred\",\"East\"",
-				["Foo Values 2"] = "Values,FooObj,2,\"Bert\",\"West\"",
+                ["Foo Values 1"] = "Values,FooObj,1,\"Fred\",\"East\"",
+                ["Foo Values 2"] = "Values,FooObj,2,\"Bert\",\"West\"",
             };
 
             AssertResult(text, checks.Count, 0, checks);
@@ -795,7 +795,7 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             var text =
                 converter
                     .Serialize()
-                    .TypedData<AttrFoo>(data)
+                    .TypedData(data)
                     .ToString();
 
             // Assert
@@ -803,8 +803,8 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             {
                 ["Foo metadata 1"] = "MD,FooObj,\"North\",5",
                 ["Foo Properties"] = "Properties,FooObj,Identity,FullName,Val",
-				["Foo Values 1"] = "Values,FooObj,1,\"Fred\",\"East\"",
-				["Foo Values 2"] = "Values,FooObj,2,\"Bert\",\"West\"",
+                ["Foo Values 1"] = "Values,FooObj,1,\"Fred\",\"East\"",
+                ["Foo Values 2"] = "Values,FooObj,2,\"Bert\",\"West\"",
             };
 
             AssertResult(text, checks.Count, 0, checks);
@@ -833,10 +833,10 @@ namespace Crowswood.CsvConverter.Tests.ConverterTests
             var converter = new Converter(options);
 
             // Act
-            var text = 
+            var text =
                 converter
                     .Serialize()
-                    .TypedData<Foo>(data)
+                    .TypedData(data)
                     .ToString();
 
             //Metadata,Foo,"XYZ",77

@@ -182,6 +182,20 @@ namespace Crowswood.CsvConverter.Helpers
             return elements.Length == list.Count ? elements : list.ToArray();
         }
 
+        /// <summary>
+        /// Splits the specified <paramref name="text"/> into lines on end of line characters, 
+        /// removing any empty entries, trimming them and ignoring any that are comments.
+        /// </summary>
+        /// <param name="text">A <see cref="string"/> containing the text to split.</param>
+        /// <returns>A <see cref="List{T}"/> of <see cref="string"/>.</returns>
+        internal static List<string> SplitLines(string text, Options options) =>
+            // Split using `\r\n` CharArray rather than `Environment.NewLine` to cater for files
+            // that use a differnet standard from the current OS.
+            text.Split("\r\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries |
+                                             StringSplitOptions.TrimEntries)
+                .Where(line => !options.CommentPrefixes.Any(prefix => line.StartsWith(prefix)))
+                .ToList();
+
         #region Support routines
 
         /// <summary>
