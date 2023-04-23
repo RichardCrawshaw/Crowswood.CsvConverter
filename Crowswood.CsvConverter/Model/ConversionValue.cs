@@ -3,7 +3,7 @@
     /// <summary>
     /// A model class to hold value conversion data.
     /// </summary>
-    internal class ConversionValue
+    internal class ConversionValue : BaseConversion
     {
         /// <summary>
         /// Gets and initialises the original value, which will be converted from.

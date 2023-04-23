@@ -3,23 +3,22 @@ using Crowswood.CsvConverter.Model;
 
 namespace Crowswood.CsvConverter.Deserializations
 {
-    internal sealed class ValueConversionData : BaseConversionData
+    internal sealed class ValueConversionData : BaseConversionData<ConversionValue>
     {
-        private readonly List<ConversionValue> conversionValues = new();
-
-        public ConversionValue[] ValueConversion => this.conversionValues.ToArray();
+        /// <summary>
+        /// Gets the value conversion data.
+        /// </summary>
+        public ConversionValue[] ValueConversion => this.Conversions;
 
         public ValueConversionData(Deserialization.DeserializationFactory factory)
             : base(factory) { }
 
-        public override void Deserialize()
-        {
-            var prefix =
-                ConfigHelper.GetConversionValuePrefix(this.factory.GlobalConfig, this.factory.Options);
-            var items = GetItems(prefix);
-            var conversionValues = ConversionHelper.GetConversionValues(items, prefix);
-            this.conversionValues.Clear();
-            this.conversionValues.AddRange(conversionValues);
-        }
+        /// <inheritdoc/>
+        protected override ConversionValue[] GetConversions(IEnumerable<string[]> items, string prefix) =>
+            ConversionHelper.GetConversionValues(items, prefix);
+
+        /// <inheritdoc/>
+        protected override string GetPrefix() =>
+            ConfigHelper.GetConversionValuePrefix(this.factory.GlobalConfig, this.factory.Options);
     }
 }

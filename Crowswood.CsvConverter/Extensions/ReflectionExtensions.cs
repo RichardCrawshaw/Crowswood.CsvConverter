@@ -1,6 +1,4 @@
-﻿using System;
-using System.Reflection;
-using System.Xml.Linq;
+﻿using System.Reflection;
 using Crowswood.CsvConverter.Model;
 
 namespace Crowswood.CsvConverter.Extensions
@@ -87,12 +85,26 @@ namespace Crowswood.CsvConverter.Extensions
                 .Select(attribute => attribute.GetType())
                 .Distinct();
 
+        /// <summary>
+        /// Get the Property from the specified <paramref name="members"/> that has the specified 
+        /// <paramref name="name"/>.
+        /// </summary>
+        /// <param name="members">An <see cref="OptionMember[]"/> containing the member info on an object type.</param>
+        /// <param name="name">A <see cref="string"/> containing the name of the property.</param>
+        /// <returns>A <see cref="PropertyInfo"/> or null if the <paramref name="name"/> cannot be found.</returns>
         public static PropertyInfo? GetProperty(this OptionMember[] members, string name) =>
             members
                 .Where(member => member.Name == name)
                 .Select(member => member.Property)
                 .FirstOrDefault();
 
+        /// <summary>
+        /// Get the Property from the specified <paramref name="propertyAndNamePairs"/> that has 
+        /// the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="propertyAndNamePairs">An <see cref="IEnumerable{T}"/> of <see cref="PropertyAndNamePair"/>.</param>
+        /// <param name="name">A <see cref="string"/> containing the name of the property.</param>
+        /// <returns>A <see cref="PropertyInfo"/> or null if the <paramref name="name"/> cannot be found.</returns>
         public static PropertyInfo? GetProperty(this IEnumerable<PropertyAndNamePair> propertyAndNamePairs, string name)=>
             propertyAndNamePairs
                 .Where(item => item.Name == name)

@@ -5,6 +5,9 @@ using static Crowswood.CsvConverter.Deserialization;
 
 namespace Crowswood.CsvConverter.Deserializations
 {
+    /// <summary>
+    /// Base abstract class for all deserialization data objects.
+    /// </summary>
     internal abstract class BaseDeserializationData
     {
         protected internal readonly DeserializationFactory factory;
@@ -26,6 +29,14 @@ namespace Crowswood.CsvConverter.Deserializations
         protected IEnumerable<string[]> GetItems(string? typeName, params string[] prefixes) =>
             this.factory.Lines.GetItems(typeName, prefixes);
 
+        /// <summary>
+        /// Converts the specified <paramref name="textValue"/> according to the rules that apply 
+        /// to the specified <paramref name="targetType"/> and return an instance of that type.
+        /// </summary>
+        /// <param name="textValue">A <see cref="string"/> containing the value to be converted.</param>
+        /// <param name="targetType">The <see cref="Type"/> of the expected result.</param>
+        /// <returns>A nullable <see cref="object"/> that contains the converted value, or null.</returns>
+        /// <exception cref="ArgumentException">If <paramref name="targetType"/> is not a supported type.</exception>
         protected static object? ConvertValue(string textValue, Type targetType)
         {
             if (targetType == typeof(string))
@@ -75,17 +86,42 @@ namespace Crowswood.CsvConverter.Deserializations
             return null;
         }
 
+        /// <summary>
+        /// Gets the properties that have the specified <paramref name="propertyNames"/> from the 
+        /// specified <paramref name="optionMembers"/> and <paramref name="propertyAndNamePairs"/>.
+        /// </summary>
+        /// <param name="propertyNames">A <see cref="string[]"/> containing the names of the required properties.</param>
+        /// <param name="optionMembers">An <see cref="OptionMember[]"/> containing the members of the object as defined in <see cref="Options"/>.</param>
+        /// <param name="propertyAndNamePairs">An <see cref="IEnumerable{T}"/> of <see cref="PropertyAndNamePair"/> containing the Property and the name alias of the object.</param>
+        /// <returns>A <see cref="PropertyInfo?[]"/> in the order defined by <paramref name="propertyNames"/>.</returns>
         protected static PropertyInfo?[] GetProperties(string[] propertyNames, OptionMember[] optionMembers, IEnumerable<PropertyAndNamePair> propertyAndNamePairs) =>
-            Enumerable
-                .Range(0, propertyNames.Length)
-                .Select(index =>
-                    optionMembers.GetProperty(propertyNames[index]) ??
-                    propertyAndNamePairs.GetProperty(propertyNames[index]))
+            propertyNames
+                .Select(propertyName =>
+                    optionMembers.GetProperty(propertyName) ??
+                    propertyAndNamePairs.GetProperty(propertyName))
                 .ToArray();
 
+        /// <summary>
+        /// Sets the properties on the specified <paramref name="obj"/> using the specified 
+        /// <paramref name="properties"/> to determine which are to be set and the specified 
+        /// <paramref name="values"/> for their value.
+        /// </summary>
+        /// <typeparam name="T">The <see cref="Type"/> of object.</typeparam>
+        /// <param name="obj">The <typeparamref name="T"/> object.</param>
+        /// <param name="properties">A <see cref="PropertyInfo?[]"/> containing the properties to set.</param>
+        /// <param name="values">A <see cref="string[]"/> containing the values to use.</param>
+        /// <returns>The <paramref name="obj"/>.</returns>
+        /// <remarks>
+        /// The order of <paramref name="properties"/> and <paramref name="values"/> must 
+        /// correspond; that is properties[0] will use values[0], etc.. The length of the two 
+        /// arrays can differ, but any elements beyond the shortest length are ignored.
+        /// Any of the <paramref name="properties"/> can be null; this will prevent the 
+        /// corresponding value from being assigned.
+        /// </remarks>
         private static T SetProperties<T>(T obj, PropertyInfo?[] properties, string[] values)
             where T : class, new()
         {
+
             for (var index = 0; index < values.Length && index < properties.Length; index++)
                 SetProperty(properties[index], values[index], obj);
 
@@ -108,16 +144,18 @@ namespace Crowswood.CsvConverter.Deserializations
         private static void SetProperty(PropertyInfo? property, string value, object? obj) => 
             property?.SetValue(obj, ConvertValue(value, property!.PropertyType));
 
-        protected static T SetValues<T>(string[] propertyNames, string[] values, OptionMember[] optionMembers, IEnumerable<PropertyAndNamePair> propertyAndNamePairs)
-            where T : class, new()
-        {
-            var properties = GetProperties(propertyNames, optionMembers, propertyAndNamePairs);
-
-            var result = SetProperties<T>(new T(), properties, values);
-
-            return result;
-        }
-
+        /// <summary>
+        /// Sets the values on an instance of <paramref name="type"/> using the specified 
+        /// <paramref name="propertyNames"/>, <paramref name="values"/>, <paramref name="optionMembers"/>, 
+        /// and <paramref name="propertyAndNamePairs"/>.
+        /// </summary>
+        /// <param name="type">The <see cref="Type"/> of object to create and set the value on.</param>
+        /// <param name="propertyNames">A <see cref="string[]"/> containing the names of the properties to set.</param>
+        /// <param name="values">A <see cref="string[]"/> containing the values to set.</param>
+        /// <param name="optionMembers">An <see cref="OptionMember[]"/> containing option information about the membes of the object.</param>
+        /// <param name="propertyAndNamePairs">An <see cref="IEnumerable{T}"/> of <see cref="PropertyAndNamePair"/> containing properties and name aliases for the object..</param>
+        /// <returns>An <see cref="object"/> containing the created instance of <paramref name="type"/>.</returns>
+        /// <exception cref="InvalidOperationException">If the creation of the instance of the <paramref name="type"/> failed.</exception>
         protected static object SetValues(Type type, string[] propertyNames, string[] values, OptionMember[] optionMembers, IEnumerable<PropertyAndNamePair> propertyAndNamePairs)
         {
             var properties = GetProperties(propertyNames, optionMembers, propertyAndNamePairs);
