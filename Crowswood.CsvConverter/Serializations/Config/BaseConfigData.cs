@@ -1,6 +1,5 @@
 ﻿namespace Crowswood.CsvConverter.Serializations
 {
-
     /// <summary>
     /// An abstract base class for serializing config data.
     /// </summary>

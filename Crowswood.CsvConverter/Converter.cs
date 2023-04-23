@@ -76,7 +76,7 @@ namespace Crowswood.CsvConverter
             if (trimmedText.StartsWith('[') && trimmedText.EndsWith(']')) return false;
             if (trimmedText.StartsWith('<') && trimmedText.EndsWith('>')) return false;
 
-            var lines = SplitLines(text);
+            var lines = ConverterHelper.SplitLines(text, this.options);
 
             // Are there at least two lines, and do they all, once comments and blank lines have
             // been removed, contain a comma?
@@ -98,7 +98,7 @@ namespace Crowswood.CsvConverter
             this.Metadata.Clear();
 
             ValidateText(text);
-            var lines = SplitLines(text);
+            var lines = ConverterHelper.SplitLines(text, this.options);
 
             var configHandler = new ConfigHandler(this.options, lines);
             var conversionHandler = new ConversionHandler(this.options, configHandler, lines);
@@ -143,7 +143,7 @@ namespace Crowswood.CsvConverter
             this.Metadata.Clear();
 
             ValidateText(text);
-            var lines = SplitLines(text);
+            var lines = ConverterHelper.SplitLines(text, this.options);
 
             var configHandler = new ConfigHandler(this.options, lines);
             var conversionHandler = new ConversionHandler(this.options, configHandler, lines);
@@ -164,6 +164,18 @@ namespace Crowswood.CsvConverter
 
             return results;
         }
+
+        /// <summary>
+        /// Initialises and retrieves an <see cref="IDeserialization"/> object that processes all 
+        /// control data blocks (Global and Typed Config, Type and Value Conversion, and handles 
+        /// all comments and blank lines) and that can be used to manage the deserialization of 
+        /// multiple data objects, and optionally their metadata.
+        /// </summary>
+        /// <param name="text">A <see cref="string"/> that contains the text to deserialize.</param>
+        /// <returns>An <see cref="IDeserialization"/> object.</returns>
+        public IDeserialization Initialise(string text) =>
+            new Deserialization(this.options, text)
+                .Initialise();
 
         /// <summary>
         /// Serializes the specified <paramref name="values"/> to a <see cref="string"/>.
@@ -269,20 +281,6 @@ namespace Crowswood.CsvConverter
             var types = typeof(TBase).GetTypes(typeNames);
             return types;
         }
-
-        /// <summary>
-        /// Splits the specified <paramref name="text"/> into lines on end of line characters, 
-        /// removing any empty entries, trimming them and ignoring any that are comments.
-        /// </summary>
-        /// <param name="text">A <see cref="string"/> containing the text to split.</param>
-        /// <returns>A <see cref="List{T}"/> of <see cref="string"/>.</returns>
-        private List<string> SplitLines(string text) =>
-            // Split using `\r\n` CharArray rather than `Environment.NewLine` to cater for files
-            // that use a differnet standard from the current OS.
-            text.Split("\r\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries |
-                                             StringSplitOptions.TrimEntries)
-                .Where(line => !this.options.CommentPrefixes.Any(prefix => line.StartsWith(prefix)))
-                .ToList();
 
         /// <summary>
         /// Validates that the specified <paramref name="text"/> is not empty.

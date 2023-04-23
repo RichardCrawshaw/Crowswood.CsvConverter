@@ -94,11 +94,7 @@ namespace Crowswood.CsvConverter.Handlers
         /// <param name="typeName">A <see cref="string"/> containing the typename to convert.</param>
         /// <returns>A <see cref="string"/>.</returns>
         public string ConvertType(string typeName) =>
-            this.IsTypeConversionEnabled ?
-            this.ConversionTypes
-                .Where(ct => ct.OriginalTypeName == typeName)
-                .Select(ct => ct.ConvertedTypeName)
-                .FirstOrDefault() ?? typeName : typeName;
+            ConversionHelper.ConvertType(typeName, this.IsTypeConversionEnabled, this.ConversionTypes);
 
         /// <summary>
         /// Converts the specified <paramref name="value"/>.
@@ -106,11 +102,7 @@ namespace Crowswood.CsvConverter.Handlers
         /// <param name="value">A <see cref="string"/> containing the value to convert.</param>
         /// <returns>A <see cref="string"/>.</returns>
         public string ConvertValue(string value) =>
-            this.IsValueConversionEnabled ?
-            this.ConversionValues
-                .Where(cv => cv.OriginalValue == value)
-                .Select(cv => cv.ConvertedValue)
-                .FirstOrDefault() ?? value : value;
+            ConversionHelper.ConvertValue(value, this.IsValueConversionEnabled, this.ConversionValues);
 
         #endregion
     }

@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
+using System.Xml.Linq;
 using Crowswood.CsvConverter.Model;
 
 namespace Crowswood.CsvConverter.Extensions
@@ -84,6 +86,22 @@ namespace Crowswood.CsvConverter.Extensions
             attributes
                 .Select(attribute => attribute.GetType())
                 .Distinct();
+
+        public static PropertyInfo? GetProperty(this OptionMember[] members, string name) =>
+            members
+                .Where(member => member.Name == name)
+                .Select(member => member.Property)
+                .FirstOrDefault();
+
+        public static PropertyInfo? GetProperty(this IEnumerable<PropertyAndNamePair> propertyAndNamePairs, string name)=>
+            propertyAndNamePairs
+                .Where(item => item.Name == name)
+                .Select(item => item.Property)
+                .FirstOrDefault() ??
+            propertyAndNamePairs
+                .Where(item => item.Property.Name == name)
+                .Select(item => item.Property)
+                .FirstOrDefault();
 
         /// <summary>
         /// Retrieves the <see cref="PropertyAndAttributePair"/> objects for the <paramref name="properties"/>.
@@ -181,21 +199,10 @@ namespace Crowswood.CsvConverter.Extensions
             for (var index = 0; index < values.Length; index++)
             {
                 // Get the PropertyInfo to use to set the value for the name, based on the
-                // OptionMembers and PropertyAnNamePairs.
-                var property =
-                    members
-                        .Where(member => member.Name == names[index])
-                        .Select(member => member.Property)
-                        .FirstOrDefault() ??
-                    propertyAndNamePairs
-                        .Where(item => item.Name == names[index])
-                        .Select(item => item.Property)
-                        .FirstOrDefault() ??
-                    propertyAndNamePairs
-                        .Where(item => item.Property.Name == names[index])
-                        .Select(item => item.Property)
-                        .FirstOrDefault();
-                //ConverterHelper.GetProperty(members, propertyAndNamePairs, names[index]);
+                // OptionMembers and PropertyAndNamePairs.
+                var property = 
+                    members.GetProperty(names[index]) ?? 
+                    propertyAndNamePairs.GetProperty(names[index]);
                 properties.Add(property);
             }
 
@@ -219,12 +226,13 @@ namespace Crowswood.CsvConverter.Extensions
         public static T SetProperties<T>(this T result, ValueConverter valueConverter, PropertyInfo?[] properties, string[] names, string[] values)
             where T : class
         {
-            for (var index = 0; index < names.Length && index < values.Length && index < properties.Length; index++)
-            {
-                var property = properties[index];
-                if (property is null) continue;
-                property.SetValue(result, valueConverter.ConvertValue(values[index], property.PropertyType));
-            }
+            for (var index = 0; index < names.Length &&
+                                index < values.Length &&
+                                index < properties.Length; index++)
+                properties[index]?
+                    .SetValue(result,
+                              valueConverter.ConvertValue(values[index],
+                                                          properties[index]!.PropertyType));
 
             return result;
         }

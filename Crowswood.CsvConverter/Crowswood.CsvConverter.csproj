@@ -47,6 +47,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Deserializations\Metadata\AttributeMetadataData.cs" />
+    <Compile Remove="Deserializations\Metadata\MetadataData.cs" />
     <Compile Remove="Options\_OptionSerialize.cs" />
   </ItemGroup>
 
