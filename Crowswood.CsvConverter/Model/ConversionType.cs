@@ -3,7 +3,7 @@
     /// <summary>
     /// A model class to hold type name conversion data.
     /// </summary>
-    internal class ConversionType
+    internal class ConversionType : BaseConversion
     {
         /// <summary>
         /// Gets and initialises the original value, which will be converted from.

@@ -3,6 +3,9 @@ using Crowswood.CsvConverter.Helpers;
 
 namespace Crowswood.CsvConverter.Deserializations
 {
+    /// <summary>
+    /// A sealed class that described a typeless object data instance.
+    /// </summary>
     internal sealed class TypelessObjectData : BaseObjectData
     {
         /// <inheritdoc/>

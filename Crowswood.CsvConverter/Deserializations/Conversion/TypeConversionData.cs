@@ -4,23 +4,22 @@ using static Crowswood.CsvConverter.Deserialization;
 
 namespace Crowswood.CsvConverter.Deserializations
 {
-    internal sealed class TypeConversionData : BaseConversionData
+    internal sealed class TypeConversionData : BaseConversionData<ConversionType>
     {
-        private readonly List<ConversionType> conversionTypes = new();
-
-        public ConversionType[] TypedConversion => this.conversionTypes.ToArray();
+        /// <summary>
+        /// Gets the type conversion data.
+        /// </summary>
+        public ConversionType[] TypedConversion => this.Conversions;
 
         public TypeConversionData(DeserializationFactory factory)
             : base(factory) { }
 
-        public override void Deserialize()
-        {
-            var prefix =
-                ConfigHelper.GetConversionTypePrefix(this.factory.GlobalConfig, this.factory.Options);
-            var items = GetItems(prefix);
-            var conversionTypes = ConversionHelper.GetConversionTypes(items, prefix);
-            this.conversionTypes.Clear();
-            this.conversionTypes.AddRange(conversionTypes);
-        }
+        /// <inheritdoc/>
+        protected override ConversionType[] GetConversions(IEnumerable<string[]> items, string prefix) =>
+            ConversionHelper.GetConversionTypes(items, prefix);
+
+        /// <inheritdoc/>
+        protected override string GetPrefix() =>
+            ConfigHelper.GetConversionTypePrefix(this.factory.GlobalConfig, this.factory.Options);
     }
 }

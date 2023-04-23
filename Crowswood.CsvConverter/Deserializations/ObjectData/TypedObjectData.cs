@@ -5,6 +5,9 @@ using static Crowswood.CsvConverter.Deserialization;
 
 namespace Crowswood.CsvConverter.Deserializations
 {
+    /// <summary>
+    /// A base abstract class that is the base object for all typed object data classes.
+    /// </summary>
     internal abstract class BaseTypedObjectData : BaseObjectData
     {
         private readonly Lazy<IEnumerable<PropertyAndNamePair>> lazyPropertyAndNamePairs;
@@ -13,6 +16,9 @@ namespace Crowswood.CsvConverter.Deserializations
         /// <inheritdoc/>
         public override string ObjectTypeName => this.lazyTypeName.Value;
 
+        /// <summary>
+        /// Get the property and name pairs for the object type.
+        /// </summary>
         protected IEnumerable<PropertyAndNamePair> PropertyAndNamePairs => this.lazyPropertyAndNamePairs.Value;
 
         /// <summary>
@@ -42,16 +48,22 @@ namespace Crowswood.CsvConverter.Deserializations
                         .GetPropertyAndNamePairs());
         }
 
-        protected IEnumerable<T> GetData<T>() where T : class
+        /// <summary>
+        /// Get the data for the object.
+        /// </summary>
+        /// <typeparam name="TObject">The type of the object.</typeparam>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <typeparamref name="TObject"/>.</returns>
+        /// <exception cref="DataMustBeDeserializedException">If the data has not been deserialized.</exception>
+        protected IEnumerable<TObject> GetData<TObject>() where TObject : class
         {
             if ((this.propertyNames is null) || (this.values is null))
                 throw new DataMustBeDeserializedException();
 
-            var results = new List<T>();
+            var results = new List<TObject>();
 
             foreach(var values in this.values)
             {
-                var value = SetValues<T>(this.PropertyNames, values);
+                var value = SetValues<TObject>(this.PropertyNames, values);
                 results.Add(value);
             }
 
@@ -83,6 +95,9 @@ namespace Crowswood.CsvConverter.Deserializations
             (T)SetValues(this.Type, propertyNames, values, this.factory.Options.OptionMembers, this.PropertyAndNamePairs);
     }
 
+    /// <summary>
+    /// A sealed non-generic class that describes a typed object data instance.
+    /// </summary>
     internal sealed class TypedObjectData : BaseTypedObjectData
     {
         /// <inheritdoc/>
@@ -98,6 +113,10 @@ namespace Crowswood.CsvConverter.Deserializations
         public IEnumerable<object> GetData() => GetData<object>();
     }
 
+    /// <summary>
+    /// A sealed generic class that describes a typed object data instance.
+    /// </summary>
+    /// <typeparam name="TObject"></typeparam>
     internal sealed class TypedObjectData<TObject> : BaseTypedObjectData
         where TObject : class, new()
     {

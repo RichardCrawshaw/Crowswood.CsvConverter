@@ -5,26 +5,17 @@ using static Crowswood.CsvConverter.Handlers.ConfigHandler;
 
 namespace Crowswood.CsvConverter.Deserializations
 {
-    internal sealed class TypedConfigData : BaseConfigData
+    internal sealed class TypedConfigData : BaseConfigData<TypedConfig>
     {
-        private readonly List<TypedConfig> typedConfig = new();
-
-        protected override Lazy<string[]> ValidKeys { get; } =
+        protected sealed override Lazy<string[]> ValidKeys { get; } =
             new(() => ConfigHelper.GetValidConfigKeys(typeof(Converter.Keys.TypedConfig)));
 
-        public TypedConfig[] TypedConfig => typedConfig.ToArray();
+        public TypedConfig[] TypedConfig => this.ConfigData;
 
         public TypedConfigData(DeserializationFactory factory)
-            : base(factory) { }
+            : base(factory, Configurations.TypedConfigPrefix, index: 2) { }
 
-        public override void Deserialize()
-        {
-            var items =
-                GetItems(typeName: null, Configurations.TypedConfigPrefix)
-                    .Where(items => this.ValidKeys.Value.Any(key => key == items[2]));
-            var globalConfig = ConfigHelper.GetTypedConfig(items);
-            this.typedConfig.Clear();
-            this.typedConfig.AddRange(globalConfig);
-        }
+        protected sealed override TypedConfig[] GetConfig(IEnumerable<string[]> items) =>
+            ConfigHelper.GetTypedConfig(items);
     }
 }

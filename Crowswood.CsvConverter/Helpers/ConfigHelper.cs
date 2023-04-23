@@ -1,5 +1,4 @@
 ﻿using Crowswood.CsvConverter.Extensions;
-using Crowswood.CsvConverter.Handlers;
 using Crowswood.CsvConverter.Interfaces;
 using Crowswood.CsvConverter.UserConfig;
 using static Crowswood.CsvConverter.Handlers.ConfigHandler;
@@ -43,7 +42,7 @@ namespace Crowswood.CsvConverter.Helpers
         {
             var typedConfig =
                 items
-                    .Where(items => items[0] == ConfigHandler.Configurations.TypedConfigPrefix)
+                    .Where(items => items[0] == Configurations.TypedConfigPrefix)
                     .Where(items => items.Length >= 4)
                     .Select(items => new { TypeName = items[1], Name = items[2], Value = items[3], })
                     .Select(n => new TypedConfig(n.TypeName, n.Name, n.Value))
