@@ -1,7 +1,7 @@
 ﻿using Crowswood.CsvConverter.Extensions;
 using Crowswood.CsvConverter.Handlers;
 
-namespace Crowswood.CsvConverter.Tests
+namespace Crowswood.CsvConverter.Tests.Internal
 {
     [TestClass]
     public class UserConfigTests
@@ -18,9 +18,9 @@ namespace Crowswood.CsvConverter.Tests
             // Assert
             Assert.IsNotNull(handler, "Failed to create handler.");
 
-            Assert.AreEqual(0, handler.GlobalConfig.Length, 
+            Assert.AreEqual(0, handler.GlobalConfig.Length,
                 "Default constructor failed to provide empty GlobalConfig.");
-            Assert.AreEqual(0, handler.TypedConfig.Length, 
+            Assert.AreEqual(0, handler.TypedConfig.Length,
                 "Default constructor failed to provide empty TypedConfig.");
         }
 
@@ -33,7 +33,7 @@ GlobalConfig,ExampleName,ExampleValue
 TypedConfig,TypeName,ExampleName,ExampleValue2
 ";
             var lines =
-                text.Split("\r\n".ToCharArray(), 
+                text.Split("\r\n".ToCharArray(),
                     StringSplitOptions.RemoveEmptyEntries |
                     StringSplitOptions.TrimEntries);
 

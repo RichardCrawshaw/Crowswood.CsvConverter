@@ -15,7 +15,7 @@
     <PackageTags>CSV;Converter;Serialize;Deserialize;Serialise;Deserialise</PackageTags>
     <PackageReleaseNotes>Initial release</PackageReleaseNotes>
     <PackageVersion>$(Version)</PackageVersion>
-    <Version>0.6.2-beta-02</Version>
+    <Version>0.6.2-beta-06</Version>
     <AssemblyVersion>0.6.1</AssemblyVersion>
     <Configurations>Debug;Release</Configurations>
     <PackageOutputPath>$(OutputPath)</PackageOutputPath>
