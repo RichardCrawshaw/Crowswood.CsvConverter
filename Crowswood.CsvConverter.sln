@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Crowswood.CsvConverter.Tests.Internal", "Crowswood.CsvConverter.Tests.Internal\Crowswood.CsvConverter.Tests.Internal.csproj", "{EE98048C-05C3-44C7-B3DB-1800BE71FA2F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{EF6FB833-8854-42A4-9399-F63EB9F42921}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EF6FB833-8854-42A4-9399-F63EB9F42921}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EF6FB833-8854-42A4-9399-F63EB9F42921}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE98048C-05C3-44C7-B3DB-1800BE71FA2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE98048C-05C3-44C7-B3DB-1800BE71FA2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE98048C-05C3-44C7-B3DB-1800BE71FA2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE98048C-05C3-44C7-B3DB-1800BE71FA2F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

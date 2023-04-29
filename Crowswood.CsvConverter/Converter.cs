@@ -7,7 +7,7 @@ using Crowswood.CsvConverter.Processors;
 using static Crowswood.CsvConverter.Handlers.ConfigHandler;
 
 [assembly: 
-    InternalsVisibleTo("Crowswood.CsvConverter.Tests")]
+    InternalsVisibleTo("Crowswood.CsvConverter.Tests.Internal")]
 
 namespace Crowswood.CsvConverter
 {
