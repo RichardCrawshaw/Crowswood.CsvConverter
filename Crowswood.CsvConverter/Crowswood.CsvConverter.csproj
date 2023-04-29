@@ -4,7 +4,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
     <Title>Crowswood.CsvConverter</Title>
     <Description>A compact and simple conversion library that supports multiple data types, metadata, configuration, comments and more within a single CSV file.</Description>
     <PackageProjectUrl>https://github.com/RichardCrawshaw/Crowswood.CsvConverter</PackageProjectUrl>
@@ -13,12 +13,25 @@
     <RepositoryUrl>https://github.com/RichardCrawshaw/Crowswood.CsvConverter</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>CSV;Converter;Serialize;Deserialize;Serialise;Deserialise</PackageTags>
-    <PackageReleaseNotes>Initial release</PackageReleaseNotes>
     <PackageVersion>$(Version)</PackageVersion>
-    <Version>0.6.2-beta-06</Version>
-    <AssemblyVersion>0.6.1</AssemblyVersion>
+    <AssemblyVersion>0.6.2</AssemblyVersion>
     <Configurations>Debug;Release</Configurations>
     <PackageOutputPath>$(OutputPath)</PackageOutputPath>
+    <!--
+      The version is automatically incremented by Automatic Versions (extension).
+      Or it can be manually incremented to the next major / minor / build / release value.
+      As well as explicitly set by manually changing the value here.
+    -->
+    <Version>0.6.2-beta-09</Version>
+    <PackageReleaseNotes>Initial release</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(GitHub)'=='Release|'">
+    <!--
+      This PropertyGroup is only active for a Release build that IS NOT run on GitHub.
+      The $(GitHub) property is an environment variable that is set in the GitHub action YAML.
+    -->
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -45,16 +58,5 @@
     <InheritWinAppVersionFrom>None</InheritWinAppVersionFrom>
     <PackageVersionSettings>AssemblyVersion.NoneWithAutoReset.Beta</PackageVersionSettings>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="Deserializations\Metadata\AttributeMetadataData.cs" />
-    <Compile Remove="Deserializations\Metadata\MetadataData.cs" />
-    <Compile Remove="Options\_OptionSerialize.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="Options\Options.cs~RF10c8ef71.TMP" />
-    <None Remove="Serialization.cs~RFbb9b9a6.TMP" />
-  </ItemGroup>
 
 </Project>
