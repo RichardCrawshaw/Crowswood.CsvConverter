@@ -8,6 +8,10 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    
+# Used to indicate that the build process is being run by GitHub Actions.
+env:
+  GitHub: true
 
 jobs:
   build:
